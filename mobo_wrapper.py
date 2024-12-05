@@ -217,12 +217,11 @@ if __name__ == "__main__":
     scheduler.run_n_trials(max_trials=N_TOTAL)
 
     #model_obj = Models.BOTORCH_MODULAR(experiment = experiment, data = experiment.fetch_data())
-
+    
     # TODO: check for HV convergence
     #hv = observed_hypervolume(modelbridge=model_obj)
     
-    
-    #exp_df = exp_to_df(experiment)
+    exp_df = exp_to_df(experiment)
     #outcomes = torch.tensor(exp_df[names].values, **tkwargs)    
-    #exp_df.to_csv(outname+".csv")
+    exp_df.to_csv(outname+".csv")
 

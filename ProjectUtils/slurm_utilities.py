@@ -28,8 +28,8 @@ class SlurmQueueClient:
             file.write("#SBATCH --partition=production\n")
             file.write("#SBATCH --mem=2G\n")
             file.write("#SBATCH --time=1:00:00\n") #CHECK HOW LONG IS REALLY NEEDED
-            file.write("#SBATCH --output=/work/clas12/pecar/RICH/alignment/CLAS12-RICH-Align/log/job_output/drich-mobo_%j.out\n")
-            file.write("#SBATCH --error=/work/clas12/pecar/RICH/alignment/CLAS12-RICH-Align/log/job_output/drich-mobo_%j.err\n")
+            file.write("#SBATCH --output="+str(os.environ["AIDE_HOME"])+"/log/job_output/drich-mobo_%j.out\n")
+            file.write("#SBATCH --error="+str(os.environ["AIDE_HOME"])+"/log/job_output/drich-mobo_%j.err\n")
             #file.write("module use /scigroup/cvmfs/hallb/clas12/sw/modulefiles\n")
             #TODO: just put this all in a bash script...
             #file.write("module load clas12 \n")
@@ -40,7 +40,7 @@ class SlurmQueueClient:
             file.write('fi\n')
             file.write("ccdb mkvar variation_{}\n".format(jobnum))
             file.write("ccdb add /geometry/rich/module1/alignment -v variation_{} ".format(jobnum)+str(os.environ["AIDE_HOME"])+"/rich/tables/rich_m1_alignment_{}.dat\n".format(jobnum))
-            file.write("recon-util -y rich/yaml/rich_{}.yaml -i ".format(jobnum)+str(os.environ["AIDE_HOME"])+"/rich_skim.hipo -o "+str(os.environ["AIDE_HOME"])+"/rich/log/hipo_files/output_{}.hipo\n".format(jobnum))
+            file.write("recon-util -y "+str(os.environ["AIDE_HOME"])+"/rich/yaml/rich_{}.yaml -i ".format(jobnum)+str(os.environ["AIDE_HOME"])+"/rich_skim.hipo -o "+str(os.environ["AIDE_HOME"])+"/rich/log/hipo_files/output_{}.hipo\n".format(jobnum))
             file.write(str(os.environ["AIDE_HOME"])+"/Clas12RichUtils/RICH-track-matching-tree "+str(os.environ["AIDE_HOME"])+"/rich/log/root_files/output_{} ".format(jobnum)+str(os.environ["AIDE_HOME"])+"/rich/log/hipo_files/output_{}.hipo\n".format(jobnum))
             file.write("python " + str(os.environ["AIDE_HOME"])+"/Clas12RichUtils/"+"runObjectiveCalc.py {} \n".format(jobnum))
         print("starting slurm job ", jobnum)
@@ -60,6 +60,7 @@ class SlurmQueueClient:
         ### totaljobs/jobid defines the suffix of the files we will use
         jobid = self.totaljobs
         create_dat(parameters, jobid)
+        create_yaml(jobid)
         
         slurmjobnum = self.submit_slurm_job(jobid)
         

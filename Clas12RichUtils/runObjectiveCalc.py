@@ -1,7 +1,5 @@
 import numpy as np
-import os, sys, subprocess, time
-import math
-import uncertainties
+import os, sys
 import uproot
 
 def retrieveResults(job_id):

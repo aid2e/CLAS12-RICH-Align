@@ -197,9 +197,8 @@ if __name__ == "__main__":
                                            mll_options={"num_samples": 128,"warmup_steps": 256,  # Increasing this may result in better model fits
                                                         },
                                            ),
-                    "botorch_acqf_class": qNoisyExpectedHypervolumeImprovement,
-                    "refit_on_update": True,
-                    "refit_on_cv": True,
+                    "botorch_acqf_class": qNoisyExpectedHypervolumeImprovement,                    
+                    "refit_on_cv": False,
                     "warm_start_refit": True
                 },
                 max_parallelism=BATCH_SIZE_MOBO

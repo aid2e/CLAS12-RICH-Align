@@ -40,7 +40,7 @@ class SlurmQueueClient:
             file.write('fi\n')
             file.write("ccdb mkvar variation_{}\n".format(jobnum))
             file.write("ccdb add /geometry/rich/module1/alignment -v variation_{} ".format(jobnum)+str(os.environ["AIDE_HOME"])+"/rich/tables/rich_m1_alignment_{}.dat\n".format(jobnum))
-            file.write("recon-util -y rich/yaml/rich_{}.yaml -i rich_skim.hipo -o ".format(jobnum)+str(os.environ["AIDE_HOME"])+"/rich/log/hipo_files/output_{}.hipo\n".format(jobnum))
+            file.write("recon-util -y rich/yaml/rich_{}.yaml -i ".format(jobnum)+str(os.environ["AIDE_HOME"])+"/rich_skim.hipo -o "+str(os.environ["AIDE_HOME"])+"/rich/log/hipo_files/output_{}.hipo\n".format(jobnum))
             file.write(str(os.environ["AIDE_HOME"])+"/Clas12RichUtils/RICH-track-matching-tree "+str(os.environ["AIDE_HOME"])+"/rich/log/root_files/output_{} ".format(jobnum)+str(os.environ["AIDE_HOME"])+"/rich/log/hipo_files/output_{}.hipo\n".format(jobnum))
             file.write("python " + str(os.environ["AIDE_HOME"])+"/Clas12RichUtils/"+"runObjectiveCalc.py {} \n".format(jobnum))
         print("starting slurm job ", jobnum)

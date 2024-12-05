@@ -38,8 +38,8 @@ from ax.modelbridge.torch import TorchModelBridge
 from botorch.acquisition.monte_carlo import (
     qNoisyExpectedImprovement,
 )
-from botorch.acquisition.multi_objective.monte_carlo import (
-    qNoisyExpectedHypervolumeImprovement,
+from botorch.acquisition.logei import (
+    qLogExpectedImprovement,
 )
 
 # for sql storage of experiment
@@ -135,7 +135,7 @@ if __name__ == "__main__":
     for name in names:
         metrics.append(
             SlurmJobMetric(
-                name=name, lower_is_better=False
+                name=name, lower_is_better=True
             )
         )
     objective = Objective(metrics[0])
@@ -197,7 +197,7 @@ if __name__ == "__main__":
                                            mll_options={"num_samples": 128,"warmup_steps": 256,  # Increasing this may result in better model fits
                                                         },
                                            ),
-                    "botorch_acqf_class": qNoisyExpectedHypervolumeImprovement,                    
+                    "botorch_acqf_class": qLogExpectedImprovement,
                     "refit_on_cv": False,
                     "warm_start_refit": True
                 },

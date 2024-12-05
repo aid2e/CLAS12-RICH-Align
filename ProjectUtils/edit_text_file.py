@@ -30,7 +30,7 @@ def create_dat(parameters, jobid):
 
 def create_yaml(jobid):
     #create and edit yaml file                                                                                                      
-    yaml_init = str(os.environ["AIDE_HOME"])+"/rich.yaml"
+    yaml_init = str(os.environ["AIDE_HOME"])+"/rich/yaml/rich.yaml"
     yaml_job = str(os.environ["AIDE_HOME"])+"/rich/yaml/rich_{}.yaml".format(jobid)
     shutil.copyfile(yaml_init, yaml_job)
 

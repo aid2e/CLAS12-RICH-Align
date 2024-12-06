@@ -8,7 +8,7 @@ def retrieveResults(job_id):
     rootfile = uproot.open(str(os.environ["AIDE_HOME"])+"/rich/log/root_files/output_{}.root".format(job_id))
     tree = rootfile[rootfile.keys()[0]]
     mchi2 = tree["mchi2"].array(library='np')    
-    return np.mean(mchi2)
+    return np.mean(mchi2[mchi2!=0])
 
 jobid = sys.argv[1]
 

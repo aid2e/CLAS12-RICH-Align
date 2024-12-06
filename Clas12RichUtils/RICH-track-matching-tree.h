@@ -34,7 +34,7 @@ public:
     tree->Branch("clz", &clz, "clz/F");
     tree->Branch("deltaR", &deltaR, "deltaR/F");
     tree->Branch("mchi2", &mchi2, "mchi2/F");
-    tree->Branch("ebpid", &ebpid, "ebpid/F");
+    tree->Branch("ebpid", &ebpid, "ebpid/I");
     //tree->Branch("traced_mchi2", &traced_mchi2, "traced_mchi2/F");
   }
 

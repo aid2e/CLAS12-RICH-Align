@@ -26,12 +26,15 @@ void fillTree(const char* file, RICHTree& tree){
     
     if(particles.getRows()==0) continue; // no reconstructed particles    
     if(!isGoodDISEvent(particles)) continue; // no reconstructed electron
-
+    
     // loop over RICH hadrons
     for(int ir = 0; ir < RICHpart.getRows(); ir++){
+      int pindex = RICHpart.getInt("pindex",ir);
+      int ebpid = particles.getInt("pid",pindex);
       //if(RICHhadron.getRows() == 0){    
       double mchi2_val = RICHpart.getFloat("mchi2", ir);      
-      tree.setmchi2(mchi2_val);      
+      tree.setmchi2(mchi2_val);
+      tree.setEBpid(ebpid);
       tree.Fill();      
     }
   }

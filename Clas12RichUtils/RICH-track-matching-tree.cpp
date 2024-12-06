@@ -10,7 +10,6 @@ void fillTree(const char* file, RICHTree& tree){
   
   hipo::bank particles(factory.getSchema("REC::Particle"));
   hipo::bank RICHcluster(factory.getSchema("RICH::Cluster"));
-  hipo::bank RICHhadron(factory.getSchema("RICH::Hadron"));
   hipo::bank RICHpart(factory.getSchema("RICH::Particle"));
   
   hipo::event event;
@@ -22,8 +21,7 @@ void fillTree(const char* file, RICHTree& tree){
 
     nev++;
     event.getStructure(particles);
-    event.getStructure(RICHcluster);
-    event.getStructure(RICHhadron);
+    event.getStructure(RICHcluster);    
     event.getStructure(RICHpart);
     
     if(particles.getRows()==0) continue; // no reconstructed particles    

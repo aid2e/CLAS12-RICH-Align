@@ -27,7 +27,7 @@ class SlurmQueueClient:
             file.write("#SBATCH --account=clas12\n")
             file.write("#SBATCH --partition=production\n")
             file.write("#SBATCH --mem=2G\n")
-            file.write("#SBATCH --time=1:00:00\n") #CHECK HOW LONG IS REALLY NEEDED
+            file.write("#SBATCH --time=1:30:00\n") #CHECK HOW LONG IS REALLY NEEDED
             file.write("#SBATCH --output="+str(os.environ["AIDE_HOME"])+"/log/job_output/drich-mobo_%j.out\n")
             file.write("#SBATCH --error="+str(os.environ["AIDE_HOME"])+"/log/job_output/drich-mobo_%j.err\n")
             file.write(str(os.environ["AIDE_HOME"])+'/Clas12RichUtils/runReconstruction.sh {}'.format(jobnum))
@@ -91,7 +91,7 @@ class SlurmQueueClient:
     def get_outcome_value_for_completed_job(self, jobid):
         job = self.jobs[jobid]
         ### HERE: load results from text file, formatted based on job id
-        results = np.loadtxt(os.environ["AIDE_HOME"]+"/log/results/" + "rich-align-mobo-out_{}.txt".format(jobid))
+        results = np.loadtxt(str(os.environ["AIDE_HOME"])+"/log/results/" + "rich-align-mobo-out_{}.txt".format(jobid))
         results_dict = {"mean_mchi2":results}
         return results_dict
 

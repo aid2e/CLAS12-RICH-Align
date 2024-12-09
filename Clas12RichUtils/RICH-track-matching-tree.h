@@ -21,6 +21,7 @@ public:
   Float_t trkx, trky, trkz, clx, cly, clz;
   Float_t deltaR;
   Float_t mchi2;
+  Int_t ebpid;
   
   RICHTree(){
     tree = new TTree("RICHtree", "");
@@ -33,6 +34,7 @@ public:
     tree->Branch("clz", &clz, "clz/F");
     tree->Branch("deltaR", &deltaR, "deltaR/F");
     tree->Branch("mchi2", &mchi2, "mchi2/F");
+    tree->Branch("ebpid", &ebpid, "ebpid/I");
     //tree->Branch("traced_mchi2", &traced_mchi2, "traced_mchi2/F");
   }
 
@@ -57,6 +59,10 @@ public:
 
   void setmchi2(double mchi2_val){
     mchi2 = mchi2_val;
+    return;
+  }
+  void setEBpid(int pid){
+    ebpid = pid;
     return;
   }
     

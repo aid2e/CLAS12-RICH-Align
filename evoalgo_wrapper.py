@@ -156,7 +156,9 @@ if __name__ == "__main__":
     BATCH_SIZE_MOBO = config["n_batch_mobo"]
     N_SOBOL = config["n_sobol"]
     N_MOBO = config["n_mobo"]
-    N_TOTAL = N_SOBOL + N_MOBO
+    pop_size = 2
+    n_evolutions = 3
+    N_TOTAL = N_SOBOL + pop_size*n_evolutions #N_MOBO
     if (N_MOBO == -1) or (N_SOBOL==-1):
         N_TOTAL+=1
     print("running ", N_TOTAL, " trials")
@@ -184,25 +186,32 @@ if __name__ == "__main__":
     
     #experiment with custom slurm runner
     experiment = build_experiment_slurm(search_space,optimization_config, SlurmJobRunner())
-    
-    gen_strategy = GenerationStrategy(
-        nodes=[
-            GenerationNode(
+
+
+    nodes = [ GenerationNode(
                 node_name = "Sobol",
                 model_specs=[ModelSpec(Models.SOBOL)],
                 transition_criteria=[
                     MaxGenerationParallelism(BATCH_SIZE_SOBOL),
                     MinTrials(threshold=N_SOBOL,block_transition_if_unmet=True,only_in_statuses=[TrialStatus.COMPLETED],
-                              transition_to="NSGA2")
-                ]
-            #MaxTrials(threshold=N_SOBOL,block_transition_if_unmet=True,
-            #          transition_to="NSGA2")]
-            ),
-            NSGA2GenerationNode(BATCH_SIZE_MOBO,
+                              transition_to="NSGA2_1")
+                ])
+             ]
+    for i in range(1,n_evolutions):
+        nodes.append(NSGA2GenerationNode(pop_size,
+                                "NSGA2_"+str(i),
                                 transition_criteria=[
-                                    MaxGenerationParallelism(BATCH_SIZE_MOBO)
-                                ])            
-        ]
+                                    MaxGenerationParallelism(BATCH_SIZE_MOBO),
+                                    MinTrials(threshold=pop_size,block_transition_if_unmet=True,only_in_statuses=[TrialStatus.COMPLETED],
+                                              transition_to="NSGA2_"+str(i+1))
+                                ]))
+    nodes.append(NSGA2GenerationNode(pop_size,
+				     "NSGA2_"+str(n_evolutions),
+                                     transition_criteria=[
+                                         MaxGenerationParallelism(BATCH_SIZE_MOBO)
+                                    ]))
+    gen_strategy = GenerationStrategy(
+        nodes=nodes
     )
     
     scheduler = Scheduler(experiment=experiment,

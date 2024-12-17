@@ -29,16 +29,22 @@ from pymoo.optimize import minimize
 # Subclassing Ax 'ExternalGenerationNode' based on tutorial at
 # https://ax.dev/tutorials/external_generation_node.html
 class NSGA2GenerationNode(ExternalGenerationNode):
-    def __init__(self, pop_size, transition_criteria=None, algo_options: Dict[str, Any] = None) -> None:
+    def __init__(self, pop_size, name, transition_criteria=None, algo_options: Dict[str, Any] = None) -> None:
         t_init_start = time.monotonic()
-        super().__init__(node_name="NSGA2",transition_criteria=transition_criteria)
+        super().__init__(node_name=name,transition_criteria=transition_criteria)
         self.algorithm = NSGA2(pop_size=pop_size)
-        
+        self.pop_size = pop_size
         self.parameters: Optional[List[RangeParameter]] = None
         self.minimize: Optional[bool] = None
         self.fit_time_since_gen: float = time.monotonic() - t_init_start
-        
+        self.candidate_num = 0
     def update_generator_state(self, experiment: Experiment, data: Data) -> None:
+        # We generate a population of size 'pop_size',
+        # evaluate all of these candidates, then
+        # only produce a new generation when candidate_num == pop_size
+        if self.candidate_num < self.pop_size:
+            return
+        print("generating new population")
         search_space = experiment.search_space
         parameter_names = list(search_space.parameters.keys())
         metric_names = list(experiment.optimization_config.metrics.keys())

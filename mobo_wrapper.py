@@ -32,6 +32,7 @@ from ProjectUtils.metric_utilities import SlurmJobMetric
 from ax.modelbridge.generation_strategy import GenerationStep, GenerationStrategy
 from ax.modelbridge.modelbridge_utils import observed_hypervolume
 from botorch.models.fully_bayesian import SaasFullyBayesianSingleTaskGP
+from botorch.models.gp_regression import SingleTaskGP
 from ax.models.torch.botorch_modular.surrogate import Surrogate
 from ax.models.torch.botorch_modular.model import BoTorchModel
 from ax.modelbridge.torch import TorchModelBridge
@@ -193,9 +194,9 @@ if __name__ == "__main__":
                 model=Models.BOTORCH_MODULAR,            
                 num_trials=-1,
                 model_kwargs={  # args for BoTorchModel
-                    "surrogate": Surrogate(botorch_model_class=SaasFullyBayesianSingleTaskGP,
-                                           mll_options={"num_samples": 128,"warmup_steps": 256,  # Increasing this may result in better model fits
-                                                        },
+                    "surrogate": Surrogate(botorch_model_class=SingleTaskGP
+                                           #,mll_options={"num_samples": 128,"warmup_steps": 256,  # Increasing this may result in better model fits
+                                           #             },
                                            ),
                     "botorch_acqf_class": qLogExpectedImprovement,
                     "refit_on_cv": False,
@@ -214,8 +215,7 @@ if __name__ == "__main__":
                           #db_settings=db_settings
                           )
 
-    scheduler.run_n_trials(max_trials=N_TOTAL)
-
+    scheduler.run_n_trials(max_trials=N_TOTAL)    
     #model_obj = Models.BOTORCH_MODULAR(experiment = experiment, data = experiment.fetch_data())
     
     # TODO: check for HV convergence
@@ -224,4 +224,6 @@ if __name__ == "__main__":
     exp_df = exp_to_df(experiment)
     #outcomes = torch.tensor(exp_df[names].values, **tkwargs)    
     exp_df.to_csv(outname+".csv")
-
+    
+    with open(outname+'_gs_model.pkl', 'wb') as file:
+        pickle.dump(gen_strategy.model, file)

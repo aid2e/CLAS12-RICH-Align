@@ -18,7 +18,7 @@ void fillTree(const char* file, RICHTree& tree){
   int nNoRich = 0;
   while(reader.next()==true){
     reader.read(event);
-
+    
     nev++;
     event.getStructure(particles);
     event.getStructure(RICHcluster);    
@@ -29,12 +29,18 @@ void fillTree(const char* file, RICHTree& tree){
     
     // loop over RICH hadrons
     for(int ir = 0; ir < RICHpart.getRows(); ir++){
+      if (RICHpart.getFloat("mchi2",ir) == 0) continue;
       int pindex = RICHpart.getInt("pindex",ir);
       int ebpid = particles.getInt("pid",pindex);
       //if(RICHhadron.getRows() == 0){    
-      double mchi2_val = RICHpart.getFloat("mchi2", ir);      
+      double mchi2_val = RICHpart.getFloat("mchi2", ir);
+      int clusterindex = RICHpart.getShort("hindex", ir);
+      //if(nev < 10) cout << "cluster index: " << clusterindex << endl;
+      int clusterpmt = RICHcluster.getShort("pmt", clusterindex);
+      //cout << "cluster pmt : " << clusterpmt << endl;
       tree.setmchi2(mchi2_val);
       tree.setEBpid(ebpid);
+      tree.setPMT(clusterpmt);
       tree.Fill();      
     }
   }

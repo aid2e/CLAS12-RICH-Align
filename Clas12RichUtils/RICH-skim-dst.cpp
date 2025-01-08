@@ -22,7 +22,6 @@ void skimDST(const char* file, hipo::writer &outWriter){
   hipo::event event;
   
   int nev = 0;
-  int nNoRich = 0;
   int nAccepted = 0;
   int nMax = 1000000;
   while(reader.next()){
@@ -43,6 +42,7 @@ void skimDST(const char* file, hipo::writer &outWriter){
     if(particles.getRows()==0) continue; // no reconstructed particles    
     if(!isGoodDISEvent(particles)) continue; // no good reconstructed electron
     if(!oneInRICH(RICHpart,particles)) continue; // add some check for PID?
+    // add a proper if statement for this
     if(!PMTSelection(RICHpart.getShort("hindex",0), RICHcluster)) continue; 
 
     nAccepted++;
@@ -57,6 +57,7 @@ void skimDST(const char* file, hipo::writer &outWriter){
     outEvent.addStructure(RUNconfig);
     outWriter.addEvent(outEvent);        
   }
+
   return;
 }
 

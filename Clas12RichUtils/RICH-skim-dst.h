@@ -106,7 +106,7 @@ bool oneInRICH(hipo::bank RICHparticles, hipo::bank particles){
 // is within some list of PMTs. 
 bool PMTSelection(int hindex, hipo::bank clusters){
   int clusterpmt = clusters.getShort("pmt", hindex);
-  std::vector<int> edgepmts = { // within 3 of edge
+  /*std::vector<int> edgepmts = { // within 3 of edge
     1,   2,   3,   4,   5,   6,   7,   8,   9,  11,  12,  13,  14,
         15,  16,  19,  20,  21,  22,  23,  24,  28,  29,  30,  31,  32,
         33,  38,  39,  40,  41,  42,  43,  49,  50,  51,  52,  53,  54,
@@ -118,12 +118,19 @@ bool PMTSelection(int hindex, hipo::bank clusters){
        241, 259, 260, 261, 262, 263, 264, 283, 284, 285, 286, 287, 288,
        308, 309, 310, 311, 312, 313, 334, 335, 336, 337, 338, 339, 361,
        362, 363, 364, 365, 366, 389, 390, 391
-  };
+       };*/
+  // Marco's list of pmts
+  //std::vector<int> edgepmts = {17,27,34,55,73,80,117,125,
+  //  143,153,172,180,191,203,
+  //  213,220,233,246,258,266,
+  //  281,307,314,320,325,331,349,351};
+
+  // some PMTs on right side of PMT plane
+  std::vector<int> edgepmts = {203,220,246,266,314,349};
   if(std::count(edgepmts.begin(), edgepmts.end(), clusterpmt) > 0){
     return true;
   }
-  else return false;
-
+  else return false;  
 }
 // ADAPTED DIRECTLY from RICH calibration suite
 // RICH::ring layers, compos to photon path information

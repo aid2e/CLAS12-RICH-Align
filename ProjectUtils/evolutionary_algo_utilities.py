@@ -32,12 +32,13 @@ from pymoo.problems.static import StaticProblem
 # Subclassing Ax 'ExternalGenerationNode' based on tutorial at
 # https://ax.dev/tutorials/external_generation_node.html
 class PymooGenerationNode(ExternalGenerationNode):
-    def __init__(self, algo, problem, pop_size, name, gen_num, transition_criteria=None, algo_options: Dict[str, Any] = None) -> None:
+    def __init__(self, algo, problem, name, name_lastnode, gen_num, transition_criteria=None, algo_options: Dict[str, Any] = None) -> None:
         t_init_start = time.monotonic()
         super().__init__(node_name=name,transition_criteria=transition_criteria)
         self.algo = algo
+        self.name=name
         self.problem = problem
-        self.pop_size = pop_size        
+        self.name_lastnode = name_lastnode
         self.gen_num = gen_num
         self.parameters: Optional[List[RangeParameter]] = None        
         self.minimize: Optional[bool] = None
@@ -49,7 +50,7 @@ class PymooGenerationNode(ExternalGenerationNode):
     def model_to_gen_from_name(self) -> str | None:
         # Override definition in GenerationNode
         # If no model name, error raised during assertion in MaxGenerationParallelism
-        return "pymoo"
+        return self.name
     def update_generator_state(self, experiment: Experiment, data: Data) -> None:
         print("checking if time to update generator state, n_generations: ", self.n_generations, " node name: ", self.node_name)
         # We generate a population of size 'pop_size',
@@ -58,7 +59,7 @@ class PymooGenerationNode(ExternalGenerationNode):
 
         # if already produced a generation in this instance, skip update.
         if self.n_generations > 0:
-            if self.candidate_num < self.pop_size:
+            if self.candidate_num < self.current_pop_size:
                 return
         print("generating new population")
         search_space = experiment.search_space
@@ -76,33 +77,25 @@ class PymooGenerationNode(ExternalGenerationNode):
             Y = []
 
             # first: get all completed trials
+            exp_df = exp_to_df(experiment) #generation_node
             for t_idx, trial in experiment.trials.items():                
                 if trial.status == TrialStatus.COMPLETED:
                     trial_parameters = trial.arm.parameters
                     x = np.array([trial_parameters[p] for p in parameter_names])
                     trial_df = data.df[data.df["trial_index"] == t_idx]
-                    y = trial_df[trial_df["metric_name"] == metric_names[0]][
-                        "mean"
-                    ].item()
-                    # Individual for population
-                    X.append(x)
-                    Y.append(y)
+
+                    gen_method = exp_df[exp_df["trial_index"] == t_idx]["generation_method"].item()
+                    if gen_method == self.name_lastnode:
+                        y = trial_df[trial_df["metric_name"] == metric_names[0]][
+                            "mean"
+                        ].item()
+                        # Individual for population
+                        X.append(x)
+                        Y.append(y)
             Y = np.array(Y)
             X = np.array(X)
-            # TODO: instead, select only trials where name matches the
-            # last generation node
-            ind_arr = []
 
-            if len(Y)-self.pop_size < 0:
-                trialmin = 0
-            else:
-                trialmin = len(Y)-self.pop_size
-            trialmax = len(Y)
-            last_population = Population.new("X", X[trialmin:trialmax])
-            #print("y shape before: ", Y.shape)    
-            Y = Y[trialmin:trialmax]
-            #print("y shape after: ", Y.shape)
-            
+            last_population = Population.new("X", X)
             static = StaticProblem(self.problem, F=Y)
             Evaluator().eval(static, last_population)
             self.algo.tell(infills=last_population)

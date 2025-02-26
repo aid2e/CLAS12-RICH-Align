@@ -1,6 +1,7 @@
 from ProjectUtils.config_editor import *
 from ProjectUtils.mobo_utilities import *
 from ProjectUtils.evolutionary_algo_utilities import *
+from ProjectUtils.cma_node import CMAESGenerationNode
 
 import os, pickle, torch, argparse, datetime, sys
 import time
@@ -30,9 +31,9 @@ import matplotlib.pyplot as plt
 from ax.modelbridge.registry import Models
 from ProjectUtils.runner_utilities import SlurmJobRunner
 from ProjectUtils.metric_utilities import SlurmJobMetric
+
 from ax.modelbridge.generation_strategy import GenerationStep, GenerationStrategy
 from ax.modelbridge.modelbridge_utils import observed_hypervolume
-from botorch.models.fully_bayesian import SaasFullyBayesianSingleTaskGP
 from ax.models.torch.botorch_modular.surrogate import Surrogate
 from ax.models.torch.botorch_modular.model import BoTorchModel
 from ax.modelbridge.torch import TorchModelBridge
@@ -62,6 +63,12 @@ from ax.storage.sqa_store.encoder import Encoder
 from ax.storage.sqa_store.sqa_config import SQAConfig
 from ax.storage.sqa_store.structs import DBSettings
 
+# pymoo imports
+from pymoo.core.problem import Problem
+from pymoo.core.termination import NoTermination
+from pymoo.algorithms.soo.nonconvex.ga import GA
+from pymoo.algorithms.soo.nonconvex.cmaes import CMAES
+from pymoo.algorithms.soo.nonconvex.de import DE
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description= "Optimization, dRICH")
@@ -74,24 +81,13 @@ if __name__ == "__main__":
     parser.add_argument('-j', '--json_file', 
                         help = "The json file to load and continue optimization", 
                         type = str, required=False)
-    parser.add_argument('-s', '--secret_file', 
-                        help = "The file containing the secret key for weights and biases",
-                        type = str, required = False,
-                        default = "secrets.key")
-    parser.add_argument('-p', '--profile',
-                        help = "Profile the code",
-                        type = bool, required = False, 
-                        default = False)
     args = parser.parse_args()
     
     # READ SOME INFO 
     config = ReadJsonFile(args.config)
     detconfig = ReadJsonFile(args.detparameters)
-    jsonFile = args.json_file
-    profiler = args.profile
+    
     outdir = config["OUTPUT_DIR"]    
-                
-    optimInfo = "optimInfo.txt" if not jsonFile else "optimInfo_continued.txt"
     if(not os.path.exists(outdir)):
         os.makedirs(outdir)
 
@@ -122,7 +118,6 @@ if __name__ == "__main__":
         return constraint_list
     
     parameters = list(detconfig["parameters"].keys())
-    #constraints_ax = constraint_ax(detconfig["constraints"],parameters)
     
     # create search space with linear constraints
     search_space = SearchSpace(
@@ -144,93 +139,69 @@ if __name__ == "__main__":
             )
         )
     objective = Objective(metrics[0])
-    #MultiObjective(
-    #    objectives=[Objective(m) for m in metrics],
-    #    )
     
     optimization_config = OptimizationConfig(objective=objective)
 
     #TODO: implement check of dominated HV convergence instead of
     #fixed N points
     BATCH_SIZE_SOBOL = config["n_batch_sobol"]
-    BATCH_SIZE_MOBO = config["n_batch_mobo"]
     N_SOBOL = config["n_sobol"]
-    N_MOBO = config["n_mobo"]
-    pop_size = 2
-    n_evolutions = 3
-    N_TOTAL = N_SOBOL + pop_size*n_evolutions #N_MOBO
-    if (N_MOBO == -1) or (N_SOBOL==-1):
-        N_TOTAL+=1
+    pop_size = config["pop_size"]
+    n_evolutions = config["n_generations"]
+    BATCH_SIZE_EVO = config["n_batch_evo"]
+    #N_TOTAL = N_SOBOL + pop_size*n_evolutions 
+    N_TOTAL = pop_size*n_evolutions 
     print("running ", N_TOTAL, " trials")
     outname = config["OUTPUT_NAME"]
-    #N_BATCH = config["n_calls"]
-    num_samples = 64 if (not config.get("MOBO_params")) else config["MOBO_params"]["num_samples"]
-    warmup_steps = 128 if (not config.get("MOBO_params")) else config["MOBO_params"]["warmup_steps"]
-    
-    # set up sql storage
-    # temporary: deactivate for now, changed with new ax version
-    #register_metrics(SlurmJobMetric)
-    #register_runner(SlurmJobRunner)
-
-    #bundle = RegistryBundle(
-    #    metric_clss={SlurmJobMetric: None}, runner_clss={SlurmJobRunner: None}
-    #)
-    #db_settings = DBSettings(
-    #    url="sqlite:///{}.db".format(outname),
-    #    encoder=bundle.encoder,
-    #    decoder=bundle.decoder
-    #)
-    #init_engine_and_session_factory(url=db_settings.url)
-    #engine = get_engine()
-    #zcreate_all_tables(engine)
-    
+            
     #experiment with custom slurm runner
     experiment = build_experiment_slurm(search_space,optimization_config, SlurmJobRunner())
+    
+    lower_bounds = np.array([ float(detconfig["parameters"][i]["lower"]) for i in detconfig["parameters"] ])
+    upper_bounds = np.array([ float(detconfig["parameters"][i]["upper"]) for i in detconfig["parameters"] ])
 
+    problem = Problem(n_var=len(parameters), n_obj=1, n_constr=0, xl=lower_bounds, xu=upper_bounds)
+    algorithm = GA(pop_size=pop_size,eliminate_duplicates=True)
+    
+    #CMAES first carries out test of x0 design point,
+    #followed by populations of pop_size
+    #x0 = np.array([0,0,5.,0,0,0])
+    #algorithm = CMAES(x0=x0, sigma=1.5, pop_size=pop_size)
 
-    nodes = [ GenerationNode(
-                node_name = "Sobol",
-                model_specs=[ModelSpec(Models.SOBOL)],
-                transition_criteria=[
-                    MaxGenerationParallelism(BATCH_SIZE_SOBOL),
-                    MinTrials(threshold=N_SOBOL,block_transition_if_unmet=True,only_in_statuses=[TrialStatus.COMPLETED],
-                              transition_to="NSGA2_1")
-                ])
-             ]
-    for i in range(1,n_evolutions):
-        nodes.append(NSGA2GenerationNode(pop_size,
-                                "NSGA2_"+str(i),
+    termination = NoTermination()
+    algorithm.setup(problem, termination=termination)
+    
+    nodes = []
+    for i in range(0,n_evolutions):#0
+        #algo, problem, pop_size, name, gen_num
+        nodes.append(PymooGenerationNode(algorithm,problem,pop_size,
+                                         "pymoo_"+str(i),i,
                                 transition_criteria=[
-                                    MaxGenerationParallelism(BATCH_SIZE_MOBO),
+                                    MaxGenerationParallelism(pop_size),
                                     MinTrials(threshold=pop_size,block_transition_if_unmet=True,only_in_statuses=[TrialStatus.COMPLETED],
-                                              transition_to="NSGA2_"+str(i+1))
+                                              transition_to="pymoo_"+str(i+1))
                                 ]))
-    nodes.append(NSGA2GenerationNode(pop_size,
-				     "NSGA2_"+str(n_evolutions),
+    nodes.append(PymooGenerationNode(algorithm,problem,pop_size,
+				     "pymoo_"+str(n_evolutions),n_evolutions,
                                      transition_criteria=[
-                                         MaxGenerationParallelism(BATCH_SIZE_MOBO)
+                                         MaxGenerationParallelism(BATCH_SIZE_EVO)
                                     ]))
     gen_strategy = GenerationStrategy(
         nodes=nodes
     )
-    
+
     scheduler = Scheduler(experiment=experiment,
                           generation_strategy=gen_strategy,
                           options=SchedulerOptions(init_seconds_between_polls=10,
                                                    seconds_between_polls_backoff_factor=1,
-                                                   min_failed_trials_for_failure_rate_check=2),
-                          #db_settings=db_settings
+                                                   min_failed_trials_for_failure_rate_check=2)                          
                           )
-        
+    
     scheduler.run_n_trials(max_trials=N_TOTAL)    
-    #model_obj = Models.BOTORCH_MODULAR(experiment = experiment, data = experiment.fetch_data())
     
     # TODO: check for HV convergence
     #hv = observed_hypervolume(modelbridge=model_obj)
     
-    exp_df = exp_to_df(experiment)
-    #outcomes = torch.tensor(exp_df[names].values, **tkwargs)    
+    exp_df = exp_to_df(experiment)    
     exp_df.to_csv(outname+".csv")
     
-    #with open(outname+'_gs_model.pkl', 'wb') as file:
-    #    pickle.dump(gen_strategy.model, file)

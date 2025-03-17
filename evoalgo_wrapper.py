@@ -163,26 +163,24 @@ if __name__ == "__main__":
     problem = Problem(n_var=len(parameters), n_obj=1, n_constr=0, xl=lower_bounds, xu=upper_bounds)
     algorithm = GA(pop_size=pop_size,eliminate_duplicates=True)
     
-    #CMAES first carries out test of x0 design point,
-    #followed by populations of pop_size
-    #x0 = np.array([0,0,5.,0,0,0])
-    #algorithm = CMAES(x0=x0, sigma=1.5, pop_size=pop_size)
-
     termination = NoTermination()
     algorithm.setup(problem, termination=termination)
     
     nodes = []
-    for i in range(0,n_evolutions):#0
-        #algo, problem, pop_size, name, gen_num
-        nodes.append(PymooGenerationNode(algorithm,problem,pop_size,
-                                         "pymoo_"+str(i),i,
-                                transition_criteria=[
-                                    MaxGenerationParallelism(pop_size),
-                                    MinTrials(threshold=pop_size,block_transition_if_unmet=True,only_in_statuses=[TrialStatus.COMPLETED],
-                                              transition_to="pymoo_"+str(i+1))
-                                ]))
-    nodes.append(PymooGenerationNode(algorithm,problem,pop_size,
-				     "pymoo_"+str(n_evolutions),n_evolutions,
+    #algo, problem, name, name_lastnode, gen_num
+    # create n_evolutions generation nodes (each node producing one generation through
+    # pymoo ask-tell interface)
+    for i in range(0,n_evolutions):
+        nodes.append(PymooGenerationNode(algorithm,problem,"pymoo_"+str(i),
+                                         "pymoo_"+str(i-1),i,
+                                         transition_criteria=[
+                                             MaxGenerationParallelism(pop_size),
+                                             MinTrials(threshold=pop_size,block_transition_if_unmet=True,only_in_statuses=[TrialStatus.COMPLETED],
+                                                       transition_to="pymoo_"+str(i+1))
+                                         ]
+                                         ))
+    nodes.append(PymooGenerationNode(algorithm,problem,"pymoo_"+str(n_evolutions),
+				     "pymoo_"+str(n_evolutions-1),n_evolutions,
                                      transition_criteria=[
                                          MaxGenerationParallelism(BATCH_SIZE_EVO)
                                     ]))

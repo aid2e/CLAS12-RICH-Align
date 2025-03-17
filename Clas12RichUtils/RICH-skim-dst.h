@@ -125,8 +125,15 @@ bool PMTSelection(int hindex, hipo::bank clusters){
   //  213,220,233,246,258,266,
   //  281,307,314,320,325,331,349,351};
 
-  // some PMTs on right side of PMT plane
-  std::vector<int> edgepmts = {203,220,246,266,314,349};
+  // up and down one 'side' (left/right) of the detector plane
+  std::vector<int> edgepmts = {
+    373,
+    243,
+    141,
+    80,
+    34,
+    16,
+  };
   if(std::count(edgepmts.begin(), edgepmts.end(), clusterpmt) > 0){
     return true;
   }

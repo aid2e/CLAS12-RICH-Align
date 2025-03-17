@@ -1,9 +1,17 @@
-
 #include "RICH-skim-dst.h"
 using namespace std;
 
+int strToInt(const char* string){
+  stringstream sstream;
+  sstream << string;
+  int sint;
+  sstream >> sint;
+  return sint;
+}
+
 // skim for: Good DIS electron && 1 hadron in either RICH
-void skimDST(const char* file, hipo::writer &outWriter){
+void skimDST(const char* file, hipo::writer &outWriter, int clustercut){
+
   
   hipo::reader  reader;
   reader.open(file);
@@ -22,8 +30,9 @@ void skimDST(const char* file, hipo::writer &outWriter){
   hipo::event event;
   
   int nev = 0;
+  int nNoRich = 0;
   int nAccepted = 0;
-  int nMax = 1000000;
+  int nMax = 100000000;
   while(reader.next()){
     if(nAccepted >= nMax) break;
     reader.read(event);
@@ -42,9 +51,9 @@ void skimDST(const char* file, hipo::writer &outWriter){
     if(particles.getRows()==0) continue; // no reconstructed particles    
     if(!isGoodDISEvent(particles)) continue; // no good reconstructed electron
     if(!oneInRICH(RICHpart,particles)) continue; // add some check for PID?
-    // add a proper if statement for this
-    if(!PMTSelection(RICHpart.getShort("hindex",0), RICHcluster)) continue; 
-
+    if(clustercut){
+      if(!PMTSelection(RICHpart.getShort("hindex",0), RICHcluster)) continue;
+    }
     nAccepted++;
     hipo::event outEvent;
     outEvent.addStructure(RECevent);
@@ -57,22 +66,22 @@ void skimDST(const char* file, hipo::writer &outWriter){
     outEvent.addStructure(RUNconfig);
     outWriter.addEvent(outEvent);        
   }
-
   return;
 }
 
 int main(int argc, char* argv[]){
   if(argc < 2){
-    cout << "usage: RICH-ana [output file name] [list of hipo files]\n";
+    cout << "usage: RICH-ana [output file name] [1: place cluster cut; 0: no cluster cut] [list of hipo files]\n";
     return 1;
-  }  
+  }
+  int clustercut = strToInt(argv[2]);
   hipo::reader  dummy_reader;
-  dummy_reader.open(argv[2]);
+  dummy_reader.open(argv[3]);
   hipo::dictionary factory;
   dummy_reader.readDictionary(factory);
 
   hipo::writer writer;
-  
+  cout << "adding scheam to writer" << endl;
   writer.getDictionary().addSchema(factory.getSchema("REC::Event"));
   writer.getDictionary().addSchema(factory.getSchema("REC::Particle"));
   writer.getDictionary().addSchema(factory.getSchema("REC::Track"));
@@ -83,9 +92,14 @@ int main(int argc, char* argv[]){
   writer.getDictionary().addSchema(factory.getSchema("RUN::config"));
   writer.open(argv[1]);
 
-  for(int i = 2; i < argc; i++){
+  //hipo::writer  writer;
+  //cout << "opening file: " << argv[1] << endl;
+  //writer.open(argv[1]);
+  
+  for(int i = 3; i < argc; i++){
     cout << "reading file " << argv[i] << endl;
-    skimDST(argv[i], writer);    
+    skimDST(argv[i], writer, clustercut);
+    
   }
   writer.close();
   return 0;

@@ -25,6 +25,7 @@ void skimDST(const char* file, hipo::writer &outWriter, int clustercut){
   hipo::bank RICHpart(factory.getSchema("RICH::Particle"));
   hipo::bank RICHtdc(factory.getSchema("RICH::tdc"));
   hipo::bank RICHcluster(factory.getSchema("RICH::Cluster"));
+  hipo::bank RICHring(factory.getSchema("RICH::Ring"));
   hipo::bank RUNconfig(factory.getSchema("RUN::config"));
   
   hipo::event event;
@@ -47,13 +48,15 @@ void skimDST(const char* file, hipo::writer &outWriter, int clustercut){
     event.getStructure(RICHpart);
     event.getStructure(RICHtdc);
     event.getStructure(RICHcluster);
+    event.getStructure(RICHring);
     
     if(particles.getRows()==0) continue; // no reconstructed particles    
     if(!isGoodDISEvent(particles)) continue; // no good reconstructed electron
-    if(!oneInRICH(RICHpart,particles)) continue; // add some check for PID?
+    if(!oneInRICH(RICHpart,particles,{11},-1)) continue; // add some check for PID?
     if(clustercut){
       if(!PMTSelection(RICHpart.getShort("hindex",0), RICHcluster)) continue;
     }
+    //if(!nPlanarPhotonCut(RICHring,3)) continue;
     nAccepted++;
     hipo::event outEvent;
     outEvent.addStructure(RECevent);
@@ -63,6 +66,7 @@ void skimDST(const char* file, hipo::writer &outWriter, int clustercut){
     outEvent.addStructure(RICHpart);
     outEvent.addStructure(RICHtdc);
     outEvent.addStructure(RICHcluster);
+    outEvent.addStructure(RICHring);
     outEvent.addStructure(RUNconfig);
     outWriter.addEvent(outEvent);        
   }

@@ -87,7 +87,7 @@ bool isGoodDISEvent(hipo::bank particles){
 }
 
 // check that there is ONE hadron in (either) rich
-bool oneInRICH(hipo::bank RICHparticles, hipo::bank particles){
+bool oneInRICH(hipo::bank RICHparticles, hipo::bank particles, std::initializer_list<int> validPIDs, double mchi2cut){
   //int hadm1 = 0;
   //int hadm2 = 0;
   // for rgc and later, check both modules
@@ -95,12 +95,19 @@ bool oneInRICH(hipo::bank RICHparticles, hipo::bank particles){
   int pindex = RICHparticles.getInt("pindex",0);
   float mchi2 = RICHparticles.getFloat("mchi2",0);
   int ebpid = particles.getInt("pid",pindex);
-  if((ebpid == 211 || ebpid == -211) && (mchi2>0)){
-    return true;
-  }  
-  else{ return false; }
+
+  if (mchi2 <= mchi2cut) {
+    return false;
+  }
   
+  for (int pid : validPIDs) {
+    if (ebpid == pid) {
+      return true;
+    }
+  }
+  return false;  
 }
+
 
 // check if PMT hit by cluster matched to track
 // is within some list of PMTs. 
@@ -228,4 +235,18 @@ std::tuple<int,int,int> DecodePhotonPath(int layers, int compos)
 
   
   return std::make_tuple(nReflections,r1,top);
+}
+
+// require some number of planar reflected photons in event
+bool nPlanarPhotonCut(hipo::bank RICHring, int nphotons){
+  int nOnePlanar = 0;
+  for(int i = 0; i < RICHring.getRows(); i++){
+    int layers = RICHring.getInt("layers",i);
+    int compos = RICHring.getInt("compos",i);
+    std::tuple<int,int,int> path = DecodePhotonPath(layers, compos);
+    int topology = GetTopology(std::get<0>(path),std::get<1>(path));
+    if(topology==2) nOnePlanar++;
+  }
+  if(nOnePlanar>nphotons){return true;}
+  else return false;
 }

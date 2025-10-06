@@ -1,11 +1,38 @@
-CXX := g++
-# Compiler flags                                                                                                                                     
-CXXFLAGS := -Wall -Wno-deprecated $(shell root-config --cflags) -I$(shell root-config --incdir) $(shell root-config --glibs) -L$(HIPO)/lib -llz4 -lhipo4 -I$(HIPO)/include
+CXX         := g++
+ROOT_CFLAGS := $(shell root-config --cflags | sed 's|-std=[^ ]*||g')
+ROOT_LIBS   := $(shell root-config --libs)
+HIPO_LIBS   := -L$(HIPO)/lib -lhipo4 -llz4
+HIPO_INCL   := -I$(HIPO)/include
+JSON_INCL      := -I/usr/local/include
 
-RICH-ana-tree: RICH-track-matching-tree.cpp RICH-skim-dst.cpp RICH-planar-ana.cpp
-	$(CXX) -o RICH-track-matching-tree RICH-track-matching-tree.cpp $(CXXFLAGS)
-	$(CXX) -o RICH-skim-dst RICH-skim-dst.cpp $(CXXFLAGS)
-	$(CXX) -o RICH-planar-ana RICH-planar-ana.cpp $(CXXFLAGS)
-# Rule to clean the project                                                                                                                          
+CXXFLAGS := -std=c++14 \
+            -I/usr/local/include \
+	    $(JSON_INCL) \
+            $(ROOT_CFLAGS) \
+            $(HIPO_INCL) \
+            -Wall -Wno-deprecated
+
+LDFLAGS  := $(ROOT_LIBS) $(HIPO_LIBS)
+
+SRCS := \
+    RICH-direct-and-planar.cpp \
+    HIPO-chunk-skim.cpp \
+    RICH-skim-dst-modular-onetop.cpp \
+
+OBJS := $(SRCS:.cpp=.o)
+EXES := $(SRCS:.cpp=)
+
+.PHONY: all clean
+
+all: $(EXES)
+
+# Link rule (must be indented by a TAB!)
+%: %.o
+	$(CXX) -o $@ $< $(LDFLAGS)
+
+# Compile rule (must be indented by a TAB!)
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -f $(OBJS) $(EXES)

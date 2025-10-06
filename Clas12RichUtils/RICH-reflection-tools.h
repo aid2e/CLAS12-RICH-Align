@@ -1,4 +1,4 @@
-using namespace std;
+//using namespace std;
 
 // ADAPTED DIRECTLY from RICH calibration suite
 // RICH::ring layers, compos to photon path information
@@ -38,7 +38,8 @@ int GetTopology(int nrefl, int refl1)
 
 // ADAPTED DIRECTLY from RICH calibration suite
 // RICH::ring layers, compos to photon path information
-std::tuple<int,int,int> DecodePhotonPath(int layers, int compos)
+
+std::tuple<int,int,int,std::vector<int>> DecodePhotonPath(int layers, int compos)
 {
   /* calculating number of reflections, refractions, first reflection and topology from the traced path flags */
   /* Mirror flag                                                                                                                                                              
@@ -54,10 +55,10 @@ std::tuple<int,int,int> DecodePhotonPath(int layers, int compos)
   std::vector<int> refl;
   /* Checking the values of the flags */
   if ( (layers < 0) || (compos < 0) ) {
-    return std::make_tuple(-1,-1,-1);
+    return std::make_tuple(-1,-1,-1,refl);
   }
-
-
+  
+  
   int nReflections = -1;
   int firstReflMirror = -1;
   int secondReflMirror = -1;
@@ -86,7 +87,5 @@ std::tuple<int,int,int> DecodePhotonPath(int layers, int compos)
   if (nReflections > 0) r1 = refl[0];
   int top = GetTopology(nReflections, r1);
   
-
-  
-  return std::make_tuple(nReflections,r1,top);
+  return std::make_tuple(nReflections,r1,top,refl);
 }

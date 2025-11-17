@@ -1,15 +1,14 @@
 configuration:
   io-services:
     writer:
-      compression: 2
-      schema_dir: /work/clas12/pecar/RICH/gemcSim/clas12-rich-sim/banks
+      compression: 2      
   services:
     MAGFIELDS:
       magfieldSolenoidMap: Symm_solenoid_r601_phi1_z1201_13June2018.dat
-      magfieldTorusMap: Full_torus_r251_phi181_z251_08May2018.dat
+      magfieldTorusMap: Full_torus_r251_phi181_z251_25Jan2021.dat
       variation: rga_fall2018
     RICH:
-      variation: default
+      variation: rga_fall2018
 io-services:
   reader:
     class: org.jlab.clas.std.services.convertors.HipoToHipoReader

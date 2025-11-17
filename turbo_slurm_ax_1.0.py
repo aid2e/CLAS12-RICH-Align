@@ -118,25 +118,27 @@ if __name__ == "__main__":
     if load_previous_trials:
         previous_csv = config["previous_csv"]
         previous_results_dir = config["previous_results_dir"]
-        previous_data = []
 
         prev_df = pd.read_csv(previous_csv)
         first_trial_number = len(prev_df)
         for i in range(len(prev_df)):
+            trial_status = prev_df["trial_status"][i]
             trial_par = {}
             for par in detconfig["parameters"]:
                 trial_par[par] = prev_df[par][i]
             trial_results = {}
-            results_txt = np.loadtxt(previous_results_dir+f"/rich-align-mobo-out_{i}.txt")
-            trial_results = {names[0]:(results_txt[0], results_txt[1])}
-            previous_data.append((trial_par, trial_results))
-
             trial_index = client.attach_trial(parameters=trial_par)
-            client.complete_trial(
-                trial_index=trial_index, raw_data=trial_results
-            )
 
-    client.configure_runner(SlurmJobRunner(metrics=names,scriptname="runReconstruction_shell_spherical_withmchi2.sh",first_trial_number=first_trial_number))
+            if trial_status == "FAILED":
+                client.mark_trial_failed(trial_index)            
+            else:
+                results_txt = np.loadtxt(previous_results_dir+f"/rich-align-mobo-out_{i}.txt")
+                trial_results = {names[0]:(results_txt[0], results_txt[1])}
+                client.complete_trial(
+                    trial_index=trial_index, raw_data=trial_results
+                )
+
+    client.configure_runner(SlurmJobRunner(metrics=names,scriptname="runReconstruction_shell_ALLsphAndDirect_INBOUTB.sh",first_trial_number=first_trial_number))
     client.configure_metrics(metrics=metrics)
     
     # now run fixed N points
@@ -179,6 +181,11 @@ if __name__ == "__main__":
                           )
         exp_df = client.summarize()
         exp_df.to_csv(outdir+"/"+outname+".csv")
+
+        current_turbo_state = generation_strategy.nodes_dict['TuRBONode'].state
+        with open(outdir+"/"+outname+"_turbo_state.json", "w") as f:
+            json.dump(asdict(current_turbo_state), f)
+        
         if generation_strategy.nodes_dict['TuRBONode'].state.restart_triggered: #if converged, end
             break
     # save trial results to csv

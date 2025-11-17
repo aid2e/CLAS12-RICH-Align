@@ -15,7 +15,7 @@ CXXFLAGS := -std=c++14 \
 LDFLAGS  := $(ROOT_LIBS) $(HIPO_LIBS)
 
 SRCS := \
-    RICH-direct-and-planar.cpp \
+    RICH-hipo-to-tree.cpp \
     HIPO-chunk-skim.cpp \
     RICH-skim-dst-modular-onetop.cpp \
 

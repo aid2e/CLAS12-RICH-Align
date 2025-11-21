@@ -17,22 +17,24 @@ class SlurmQueueClient:
     """
     jobs = {}
     totaljobs = 0
-    objectives = ["mean_mchi2"
-                  ]
+    metrics = None
     
-    def submit_slurm_job(self, jobnum):
+    def submit_slurm_job(self, jobnum, scriptname):
+        # assuming we have one bash script to run per job
         with open("jobconfig_{}.slurm".format(jobnum),"w") as file:
             file.write("#!/bin/bash\n")
             file.write("#SBATCH --job-name=rich-align-mobo\n")
-            file.write("#SBATCH --account=clas12\n")
-            file.write("#SBATCH --partition=production\n")
-            file.write("#SBATCH --mem=2G\n")
-            file.write("#SBATCH --time=00:03:00\n") 
-            file.write("#SBATCH --output="+str(os.environ["AIDE_HOME"])+"/log/job_output/drich-mobo_%j.out\n")
-            file.write("#SBATCH --error="+str(os.environ["AIDE_HOME"])+"/log/job_output/drich-mobo_%j.err\n")
-            file.write(str(os.environ["AIDE_HOME"])+'/Clas12RichUtils/runReconstruction.sh {}'.format(jobnum))
+            file.write("#SBATCH --account=vossenlab\n")
+            file.write("#SBATCH --partition=scavenger\n")
+            file.write("#SBATCH --mem=6G\n")
+            file.write("#SBATCH --cpus-per-task=2\n")
+            file.write("#SBATCH --time=03:30:00\n") 
+            file.write("#SBATCH --output="+str(os.environ["AIDE_HOME"])+f"/log/job_output/drich-mobo_{jobnum}.out\n")
+            file.write("#SBATCH --error="+str(os.environ["AIDE_HOME"])+f"/log/job_output/drich-mobo_{jobnum}.err\n")
+            file.write(str(os.environ["AIDE_HOME"])+'/Clas12RichUtils/{} {}'.format(scriptname,jobnum))
         print("starting slurm job ", jobnum)
-        shellcommand = ["sbatch","--export=ALL","jobconfig_{}.slurm".format(jobnum)]        
+        shellcommand = ["sbatch","--export=ALL","jobconfig_{}.slurm".format(jobnum)]
+        
         commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
         
         output = commandout.stdout.decode('utf-8')
@@ -42,15 +44,15 @@ class SlurmQueueClient:
         else:
             return -1
         return
-    
-    def schedule_job_with_parameters(self, parameters):
+        
+    def schedule_job_with_parameters(self, parameters, scriptname):
         ### HERE: schedule the slurm job, retrieve the jobid from command line output        
         ### totaljobs/jobid defines the suffix of the files we will use
         jobid = self.totaljobs
-        create_dat(parameters, jobid)
+        create_dat_general(parameters, jobid)
         create_yaml(jobid)
         
-        slurmjobnum = self.submit_slurm_job(jobid)
+        slurmjobnum = self.submit_slurm_job(jobid, scriptname)
         
         self.jobs[jobid] = SlurmJob(jobid, slurmjobnum, parameters) 
         self.totaljobs += 1
@@ -89,10 +91,18 @@ class SlurmQueueClient:
         return TrialStatus.RUNNING
     
     def get_outcome_value_for_completed_job(self, jobid):
-        job = self.jobs[jobid]
         ### HERE: load results from text file, formatted based on job id
-        results = np.loadtxt(str(os.environ["AIDE_HOME"])+"/log/results/" + "rich-align-mobo-out_{}.txt".format(jobid))
-        results_dict = {"mean_mchi2":results}
+        results = np.loadtxt(str(os.environ["AIDE_HOME"])+"/log/results/" + "rich-align-mobo-out_{}.txt".format(jobid))        
+        results_dict = {}
+        if len(self.metrics) > 1:
+            for idx, obj in enumerate(self.metrics):
+                mean = results[2*idx]
+                sem = results[2*idx+1]
+                if sem == 0:
+                    sem = None
+                results_dict[obj] = [mean,sem]
+        else:
+            results_dict = {self.metrics[0]:results}
         return results_dict
 
 SLURM_QUEUE_CLIENT = SlurmQueueClient()

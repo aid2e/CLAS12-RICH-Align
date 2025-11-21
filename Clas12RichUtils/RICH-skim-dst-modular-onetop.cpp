@@ -31,6 +31,7 @@ SkimConfig loadConfig(const std::string& path) {
     if(j.contains("sphericalMirror"))  cfg.sphericalMirror   = j["sphericalMirror"].get<int>();
     if(j.contains("minPhotons"))  cfg.minPhotons   = j["minPhotons"].get<int>();
     if(j.contains("maxev"))  cfg.maxev   = j["maxev"].get<int>();
+    if(j.contains("maxPerTile"))  cfg.maxPerTile   = j["maxPerTile"].get<int>();
     if(j.contains("validPIDs"))        cfg.validPIDs         = j["validPIDs"].get<std::vector<int>>();
     return cfg;
 }
@@ -167,7 +168,7 @@ bool isGoodDirectEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::bank part
       if(RICHring.getInt("pindex",ip) != pindex) continue;
       float etaC = RICHring.getFloat("etaC",ip);
       int use = int(RICHring.getByte("use",ip));
-      if(etaC == 0 || use != 111) continue; // use!=111                                                                                                             
+      if(etaC == 0 || use < 11 || use > 111 ) continue; // use!=111
       
       avgetaC += etaC;
       nphotons++;
@@ -196,7 +197,7 @@ bool isGoodPlanarEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::bank part
       if(RICHring.getInt("pindex",ip) != pindex) continue;
       float etaC = RICHring.getFloat("etaC",ip);
       int use = int(RICHring.getByte("use",ip));
-      if(etaC == 0 || use != 111) continue; // use!=111
+      if(etaC == 0 || use < 11 || use > 111) continue; // use!=111
       
       auto [nref,mirr1,top,refl] = DecodePhotonPath(
 						    RICHring.getInt("layers",ip),
@@ -230,7 +231,7 @@ bool isGoodSphericalEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::bank p
       float etaC = RICHring.getFloat("etaC",ip);
       int use = int(RICHring.getByte("use",ip));
       //if(etaC == 0 || use < 10) continue; // use!=111                                                                                                             
-      if(etaC == 0 || use!=111) continue;
+      if(etaC == 0 || use < 11 || use > 111) continue;
       
       auto [nref,mirr1,top,refl] = DecodePhotonPath(
 						    RICHring.getInt("layers",ip),
@@ -276,7 +277,7 @@ bool isGoodThreeReflEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::bank p
       float etaC = RICHring.getFloat("etaC",ip);
       int use = int(RICHring.getByte("use",ip));
       //if(etaC == 0 || use < 10) continue; // use!=111                                                                                                             
-      if(etaC == 0 || use!=111) continue;
+      if(etaC == 0 || use < 11 || use > 111) continue;
       
       auto [nref,mirr1,top,refl] = DecodePhotonPath(
 						    RICHring.getInt("layers",ip),
@@ -327,7 +328,7 @@ bool isGoodTwoPlanarReflEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::ba
       float etaC = RICHring.getFloat("etaC",ip);
       int use = int(RICHring.getByte("use",ip));
       //if(etaC == 0 || use < 10) continue; // use!=111                                                                                                             
-      if(etaC == 0 || use!=111) continue;
+      if(etaC == 0 || use < 11 || use > 111) continue;
       
       auto [nref,mirr1,top,refl] = DecodePhotonPath(
 						    RICHring.getInt("layers",ip),
@@ -433,7 +434,14 @@ void skimDST(const char* file,
 	if(cfg.topologyType == 3 && !isGoodThreeReflEvent(RICHring,RICHpart,particles,cfg)) continue; //{std::cout << "Cut for spherical\n";continue;}
 	if(cfg.topologyType == 4 && !isGoodTwoPlanarReflEvent(RICHring,RICHpart,particles,cfg)) continue; //{std::cout << "Cut for spherical\n";continue;}
 	if(cfg.topologyType == 5 && !isGoodClusterEvent(RICHcluster,RICHpart,particles,cfg)) continue; //{std::cout << "Cut for spherical\n";continue;}
-	if(stats.nAccepted > cfg.maxev) continue;
+
+	// assuming one particle in the RICH cut is always applied
+	int layer = RICHpart.getInt("emilay", 0);
+	int tile = RICHpart.getInt("emico", 0);
+	if(stats.layerCounters[layer][tile] >= cfg.maxPerTile) continue;
+	stats.layerCounters[layer][tile]++;
+	
+	if(stats.nAccepted >= cfg.maxev) continue;
         ++stats.nAccepted;
         hipo::event outE;
         outE.addStructure(RECevent);

@@ -86,7 +86,7 @@ def create_dat_general(parameters, jobid):
                 f"{parameters[f'dthy_301_{i}']}     0"
             )
             replace_line_in_file(dat_job, line_num, new_line)
-    for i in range(2, 11): #TODO TODO TODO: set back to (1,11) after upper...
+    for i in range(1, 11):
         key = f"302_{i}"
         if any(key in k for k in keys):
             line_num = line_number_dict["302"][str(i)]

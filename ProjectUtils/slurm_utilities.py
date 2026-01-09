@@ -2,8 +2,7 @@ import os, sys, subprocess
 import numpy as np
 from ax.core.base_trial import TrialStatus
 from time import time
-from ProjectUtils.edit_text_file import *
-
+from ProjectUtils.edit_text_file_global import *
 from typing import Any, Dict, NamedTuple, Union
 
 class SlurmJob(NamedTuple):
@@ -18,22 +17,23 @@ class SlurmQueueClient:
     jobs = {}
     totaljobs = 0
     metrics = None
+    output_dir = None
     
-    def submit_slurm_job(self, jobnum, scriptname):
+    def submit_slurm_job(self, jobnum, scriptname, config):        
         # assuming we have one bash script to run per job
-        with open("jobconfig_{}.slurm".format(jobnum),"w") as file:
+        with open(self.output_dir+"/jobconfig_{}.slurm".format(jobnum),"w") as file:
             file.write("#!/bin/bash\n")
             file.write("#SBATCH --job-name=rich-align-mobo\n")
             file.write("#SBATCH --account=vossenlab\n")
             file.write("#SBATCH --partition=scavenger\n")
             file.write("#SBATCH --mem=6G\n")
-            file.write("#SBATCH --cpus-per-task=2\n")
-            file.write("#SBATCH --time=03:30:00\n") 
-            file.write("#SBATCH --output="+str(os.environ["AIDE_HOME"])+f"/log/job_output/drich-mobo_{jobnum}.out\n")
-            file.write("#SBATCH --error="+str(os.environ["AIDE_HOME"])+f"/log/job_output/drich-mobo_{jobnum}.err\n")
-            file.write(str(os.environ["AIDE_HOME"])+'/Clas12RichUtils/{} {}'.format(scriptname,jobnum))
+            file.write("#SBATCH --cpus-per-task=1\n")
+            file.write("#SBATCH --time=04:00:00\n") 
+            file.write("#SBATCH --output="+self.output_dir+f"/log/job_output/drich-mobo_{jobnum}.out\n")
+            file.write("#SBATCH --error="+self.output_dir+f"/log/job_output/drich-mobo_{jobnum}.err\n")
+            file.write(str(os.environ["AIDE_HOME"])+'/Clas12RichUtils/{} {} {}'.format(scriptname,jobnum,config))
         print("starting slurm job ", jobnum)
-        shellcommand = ["sbatch","--export=ALL","jobconfig_{}.slurm".format(jobnum)]
+        shellcommand = ["sbatch","--export=ALL",self.output_dir+"/jobconfig_{}.slurm".format(jobnum)]
         
         commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
         
@@ -45,14 +45,14 @@ class SlurmQueueClient:
             return -1
         return
         
-    def schedule_job_with_parameters(self, parameters, scriptname):
+    def schedule_job_with_parameters(self, parameters, scriptname, config):
         ### HERE: schedule the slurm job, retrieve the jobid from command line output        
         ### totaljobs/jobid defines the suffix of the files we will use
         jobid = self.totaljobs
-        create_dat_general(parameters, jobid)
-        create_yaml(jobid)
+        create_dat_general(parameters, jobid, self.output_dir)
+        create_yaml(jobid, self.output_dir)
         
-        slurmjobnum = self.submit_slurm_job(jobid, scriptname)
+        slurmjobnum = self.submit_slurm_job(jobid, scriptname, config)
         
         self.jobs[jobid] = SlurmJob(jobid, slurmjobnum, parameters) 
         self.totaljobs += 1
@@ -92,7 +92,7 @@ class SlurmQueueClient:
     
     def get_outcome_value_for_completed_job(self, jobid):
         ### HERE: load results from text file, formatted based on job id
-        results = np.loadtxt(str(os.environ["AIDE_HOME"])+"/log/results/" + "rich-align-mobo-out_{}.txt".format(jobid))        
+        results = np.loadtxt(self.output_dir+"/log/results/" + "rich-align-mobo-out_{}.txt".format(jobid))        
         results_dict = {}
         if len(self.metrics) > 1:
             for idx, obj in enumerate(self.metrics):

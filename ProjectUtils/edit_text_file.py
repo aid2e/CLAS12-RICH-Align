@@ -13,7 +13,7 @@ def replace_line_in_file(file_path, line_number, new_line):
     else:
         print(f"Invalid line number: {line_number}")
         
-def create_dat_general(parameters, jobid):
+def create_dat_general(parameters, jobid, output_dir):
     #create and edit alignment parameters text file to add to CLAS12 ccdb.
     # assume parameters named as "{param}_{layer}_{component}".
     # component == 0 is mis-alignment applied to full layer    
@@ -35,7 +35,7 @@ def create_dat_general(parameters, jobid):
                         }
     
     dat_init = str(os.environ["AIDE_HOME"])+"/rich/tables/rich_m1_alignment_bestglobal_frommarco.dat"
-    dat_job = str(os.environ["AIDE_HOME"])+"/rich/tables/rich_m1_alignment_{}.dat".format(jobid)
+    dat_job = output_dir+"/rich/tables/rich_m1_alignment_{}.dat".format(jobid)
     shutil.copyfile(dat_init, dat_job)
 
     keys = parameters.keys()
@@ -99,10 +99,10 @@ def create_dat_general(parameters, jobid):
             replace_line_in_file(dat_job, line_num, new_line)
             
     return
-def create_yaml(jobid):
+def create_yaml(jobid, output_dir):
     #create and edit yaml file                                                                                                      
     yaml_init = str(os.environ["AIDE_HOME"])+"/rich/yaml/rich.yaml"
-    yaml_job = str(os.environ["AIDE_HOME"])+"/rich/yaml/rich_{}.yaml".format(jobid)
+    yaml_job = output_dir+"/rich/yaml/rich_{}.yaml".format(jobid)
     shutil.copyfile(yaml_init, yaml_job)
     
     line_number_yaml = 10#11 #old yaml

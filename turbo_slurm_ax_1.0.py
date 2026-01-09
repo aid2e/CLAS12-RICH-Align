@@ -72,13 +72,15 @@ if __name__ == "__main__":
     config = ReadJsonFile(args.config) # optimization parameters
     detconfig = ReadJsonFile(args.detparameters) # geometry parameters
 
+    csvdir = config["CSV_DIR"]    
     outdir = config["OUTPUT_DIR"]    
     outname = config["OUTPUT_NAME"]
     logdir = config["LOG_DIR"]
     # create specified output directory if it doesn't exist
-    if(not os.path.exists(outdir)):
-        os.makedirs(outdir)
-
+    if(not os.path.exists(csvdir)):
+        os.makedirs(csvdir)
+    ensure_output_dirs(outdir) # create output directory and its needed subdirectories
+    
     isGPU = torch.cuda.is_available()
     tkwargs = {
         "dtype": torch.double, 
@@ -98,7 +100,8 @@ if __name__ == "__main__":
     for name in names:
         metrics.append(
             SlurmJobMetric(
-                name=name
+                name=name,
+                output_dir=outdir
             )
         )
             
@@ -138,7 +141,11 @@ if __name__ == "__main__":
                     trial_index=trial_index, raw_data=trial_results
                 )
 
-    client.configure_runner(SlurmJobRunner(metrics=names,scriptname="runReconstruction_shell_ALLsphAndDirect_INBOUTB.sh",first_trial_number=first_trial_number))
+    client.configure_runner(SlurmJobRunner(metrics=names,
+                                           scriptname="runContainerReconstructionPions.sh",
+                                           config=args.config,
+                                           output_dir=outdir,
+                                           first_trial_number=first_trial_number))
     client.configure_metrics(metrics=metrics)
     
     # now run fixed N points
@@ -180,24 +187,24 @@ if __name__ == "__main__":
                           initial_seconds_between_polls=10
                           )
         exp_df = client.summarize()
-        exp_df.to_csv(outdir+"/"+outname+".csv")
+        exp_df.to_csv(csvdir+"/"+outname+".csv")
 
         current_turbo_state = generation_strategy.nodes_dict['TuRBONode'].state
-        with open(outdir+"/"+outname+"_turbo_state.json", "w") as f:
+        with open(csvdir+"/"+outname+"_turbo_state.json", "w") as f:
             json.dump(asdict(current_turbo_state), f)
         
         if generation_strategy.nodes_dict['TuRBONode'].state.restart_triggered: #if converged, end
             break
     # save trial results to csv
     exp_df = client.summarize()
-    exp_df.to_csv(outdir+"/"+outname+".csv")
+    exp_df.to_csv(csvdir+"/"+outname+".csv")
     # save trust regions
     trust_regions = pd.DataFrame(generation_strategy.nodes_dict['TuRBONode'].state.trust_regions)
-    trust_regions.to_csv(outdir+"/"+outname+"_trustregions.csv")
+    trust_regions.to_csv(csvdir+"/"+outname+"_trustregions.csv")
 
     # save turbo state when trials completed
     final_turbo_state = generation_strategy.nodes_dict['TuRBONode'].state
-    with open(outdir+"/"+outname+"_turbo_state.json", "w") as f:
+    with open(csvdir+"/"+outname+"_turbo_state.json", "w") as f:
         json.dump(asdict(final_turbo_state), f)
     
     # save old results files

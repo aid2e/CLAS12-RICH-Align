@@ -5,6 +5,7 @@
 #include "TLorentzVector.h"
 #include <sstream>
 #include <iostream>
+#include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -33,6 +34,7 @@ SkimConfig loadConfig(const std::string& path) {
     if(j.contains("maxev"))  cfg.maxev   = j["maxev"].get<int>();
     if(j.contains("maxPerTile"))  cfg.maxPerTile   = j["maxPerTile"].get<int>();
     if(j.contains("validPIDs"))        cfg.validPIDs         = j["validPIDs"].get<std::vector<int>>();
+    if(j.contains("sector"))        cfg.sector         = j["sector"].get<int>();
     return cfg;
 }
 
@@ -122,6 +124,7 @@ bool oneInRICH(hipo::bank RICHparticles, hipo::bank particles, const std::vector
   double pz = particles.getFloat("pz",pindex);
   double p = sqrt(px*px+py*py+pz*pz);
 
+  // TODO: remove this? Was for electrons specifically
   if(p > 5) return false;
   
   if (mchi2 <= mchi2cut) {
@@ -168,8 +171,12 @@ bool isGoodDirectEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::bank part
       if(RICHring.getInt("pindex",ip) != pindex) continue;
       float etaC = RICHring.getFloat("etaC",ip);
       int use = int(RICHring.getByte("use",ip));
+
+      int sector = int(RICHring.getByte("sector",ip));
+      if(sector != cfg.sector) continue;
+
       if(etaC == 0 || use < 11 || use > 111 ) continue; // use!=111
-      
+
       avgetaC += etaC;
       nphotons++;
       auto [nref,_r1,top,refl] = DecodePhotonPath(
@@ -197,6 +204,10 @@ bool isGoodPlanarEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::bank part
       if(RICHring.getInt("pindex",ip) != pindex) continue;
       float etaC = RICHring.getFloat("etaC",ip);
       int use = int(RICHring.getByte("use",ip));
+
+      int sector = int(RICHring.getByte("sector",ip));
+      if(sector != cfg.sector) continue;
+
       if(etaC == 0 || use < 11 || use > 111) continue; // use!=111
       
       auto [nref,mirr1,top,refl] = DecodePhotonPath(
@@ -230,6 +241,10 @@ bool isGoodSphericalEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::bank p
       if(RICHring.getInt("pindex",ip) != pindex) continue;
       float etaC = RICHring.getFloat("etaC",ip);
       int use = int(RICHring.getByte("use",ip));
+
+      int sector = int(RICHring.getByte("sector",ip));
+      if(sector != cfg.sector) continue; // continue or just return false if photons in wrong sector?
+
       //if(etaC == 0 || use < 10) continue; // use!=111                                                                                                             
       if(etaC == 0 || use < 11 || use > 111) continue;
       
@@ -277,6 +292,9 @@ bool isGoodThreeReflEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::bank p
       float etaC = RICHring.getFloat("etaC",ip);
       int use = int(RICHring.getByte("use",ip));
       //if(etaC == 0 || use < 10) continue; // use!=111                                                                                                             
+      int sector = int(RICHring.getByte("sector",ip));
+      if(sector != cfg.sector) continue;
+
       if(etaC == 0 || use < 11 || use > 111) continue;
       
       auto [nref,mirr1,top,refl] = DecodePhotonPath(
@@ -328,6 +346,9 @@ bool isGoodTwoPlanarReflEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::ba
       float etaC = RICHring.getFloat("etaC",ip);
       int use = int(RICHring.getByte("use",ip));
       //if(etaC == 0 || use < 10) continue; // use!=111                                                                                                             
+      int sector = int(RICHring.getByte("sector",ip));
+      if(sector != cfg.sector) continue;
+
       if(etaC == 0 || use < 11 || use > 111) continue;
       
       auto [nref,mirr1,top,refl] = DecodePhotonPath(
@@ -370,6 +391,9 @@ bool isGoodClusterEvent(hipo::bank RICHcluster, hipo::bank RICHpart, hipo::bank 
   int hindex = RICHpart.getInt("hindex", 0);
   
   if(hindex >= 0){
+    int sector = RICHcluster.getShort("sector",hindex);
+    if(sector != cfg.sector) return false;
+    
     int pmt = RICHcluster.getShort("pmt",hindex);
     float mchi2 = RICHpart.getFloat("mchi2",0);
     if(PMTSelection(pmt) && (mchi2>0)){
@@ -539,6 +563,10 @@ int main(int argc, char* argv[]) {
     }
     writer.close();
 
+    if(stats.nAccepted == 0){
+      std::remove(argv[1]);      
+    }
+    
     TCanvas c("c","c",800,600);
     hAvgCher->Draw();
     c.SaveAs("log/plots/avgCherAngle.pdf");

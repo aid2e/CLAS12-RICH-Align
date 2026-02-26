@@ -1,60 +1,23 @@
 from ProjectUtils.config_editor import *
 from ProjectUtils.genstrategy_utilities import construct_generation_strategy, construct_turbo_generation_strategy
-import os, pickle, torch, argparse, datetime
-import time
-import shutil
+import os, argparse, shutil
 
 import pandas as pd
 import numpy as np
+import json
+from dataclasses import asdict
 
+# Ax imports
 from ax import *
-from ax.modelbridge.registry import Models
-from botorch.models.fully_bayesian import SaasFullyBayesianSingleTaskGP
-from botorch.models.gp_regression import SingleTaskGP
-from ax.models.torch.botorch_modular.surrogate import Surrogate
-
 from ax.api.client import Client
 from ax.api.configs import RangeParameterConfig
-
 from ax.service.utils.report_utils import exp_to_df
 
-# Model registry for creating multi-objective optimization models.
-from ax.modelbridge.registry import Models
-
-# Scheduler imports
-from ax.core.metric import Metric
-
-from ax.modelbridge.registry import Models
+# Scheduler/runner imports
 from ProjectUtils.runner_utilities import SlurmJobRunner
 from ProjectUtils.metric_utilities import SlurmJobMetric
 from ProjectUtils.turbo_utilities import TuRBOGenerationNode, TurboState
 
-from ax.generation_strategy.transition_criterion import MinTrials
-from ax.generation_strategy.generation_strategy import GenerationStrategy
-from ax.generation_strategy.generation_node import GenerationNode
-from ax.generation_strategy.model_spec import GeneratorSpec
-from ax.modelbridge.registry import Generators
-
-
-from gpytorch.kernels import MaternKernel
-from botorch.models import SingleTaskGP
-from botorch.models.fully_bayesian_multitask import SaasFullyBayesianMultiTaskGP
-from ax.utils.stats.model_fit_stats import MSE
-from ax.models.torch.botorch_modular.surrogate import SurrogateSpec, ModelConfig
-
-from botorch.acquisition.multi_objective.monte_carlo import (
-    qNoisyExpectedHypervolumeImprovement
-)
-from botorch.acquisition.multi_objective.logei import qLogNoisyExpectedHypervolumeImprovement
-
-#early stopping
-from ax.global_stopping.strategies.improvement import ImprovementGlobalStoppingStrategy
-
-# json storage
-from ax.api.configs import StorageConfig
-from ax.storage.registry_bundle import RegistryBundle
-from dataclasses import asdict
-import json
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description= "Optimization, dRICH")
@@ -72,28 +35,26 @@ if __name__ == "__main__":
     config = ReadJsonFile(args.config) # optimization parameters
     detconfig = ReadJsonFile(args.detparameters) # geometry parameters
 
-    csvdir = config["CSV_DIR"]    
-    outdir = config["OUTPUT_DIR"]    
-    outname = config["OUTPUT_NAME"]
-    logdir = config["LOG_DIR"]
+    csvdir = config["paths"]["CSV_DIR"]    
+    outdir = config["paths"]["OUTPUT_DIR"]    
+    outname = config["paths"]["OUTPUT_NAME"]
+    logdir = config["paths"]["LOG_DIR"]    
+    
+    metric_name = config["optimization"]["METRIC_NAME"]
+    job_script_name = config["scripts"]["RECO_SCRIPT_NAME"]
+    
     # create specified output directory if it doesn't exist
     if(not os.path.exists(csvdir)):
         os.makedirs(csvdir)
     ensure_output_dirs(outdir) # create output directory and its needed subdirectories
     
-    isGPU = torch.cuda.is_available()
-    tkwargs = {
-        "dtype": torch.double, 
-        "device": torch.device("cuda" if isGPU else "cpu"),
-    }
-
     search_space = [RangeParameterConfig(name=i,
                                          bounds=(float(detconfig["parameters"][i]["lower"]), float(detconfig["parameters"][i]["upper"])), 
                                          parameter_type="float")
                     for i in detconfig["parameters"]
                     ]
     
-    names = ["ele_resid"
+    names = [metric_name
              ]
 
     metrics = []
@@ -105,7 +66,6 @@ if __name__ == "__main__":
             )
         )
             
-    #client = Client(storage_config = storage_config)
     client = Client()
     client.configure_experiment(
         parameters=search_space,
@@ -117,10 +77,10 @@ if __name__ == "__main__":
 
     # load data from old trials
     first_trial_number = 0
-    load_previous_trials = config["load_previous_trials"]
+    load_previous_trials = config["optimization"]["load_previous_trials"]
     if load_previous_trials:
-        previous_csv = config["previous_csv"]
-        previous_results_dir = config["previous_results_dir"]
+        previous_csv = config["optimization"]["previous_csv"]
+        previous_results_dir = config["optimization"]["previous_results_dir"]
 
         prev_df = pd.read_csv(previous_csv)
         first_trial_number = len(prev_df)
@@ -142,20 +102,19 @@ if __name__ == "__main__":
                 )
 
     client.configure_runner(SlurmJobRunner(metrics=names,
-                                           scriptname="runContainerReconstructionPions.sh",
+                                           scriptname=job_script_name,
                                            config=args.config,
                                            output_dir=outdir,
-                                           first_trial_number=first_trial_number))
+                                           first_trial_number=first_trial_number                                           
+                                           ))
     client.configure_metrics(metrics=metrics)
     
     # now run fixed N points
-    BATCH_SIZE_SOBOL = config["n_batch_sobol"]
-    BATCH_SIZE_MOBO = config["n_batch_mobo"]
-    N_SOBOL = config["n_sobol"]
-    N_MOBO = config["n_mobo"]
+    BATCH_SIZE_SOBOL = config["optimization"]["n_batch_sobol"]
+    BATCH_SIZE_MOBO = config["optimization"]["n_batch_mobo"]
+    N_SOBOL = config["optimization"]["n_sobol"]
+    N_MOBO = config["optimization"]["n_mobo"]
     N_TOTAL = N_SOBOL + N_MOBO
-    if (N_MOBO == -1) or (N_SOBOL==-1):
-        N_TOTAL+=1
     print("Scheduling ", N_TOTAL, " trials")
 
     if not load_previous_trials:

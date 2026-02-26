@@ -2,7 +2,8 @@ import os, sys, subprocess
 import numpy as np
 from ax.core.base_trial import TrialStatus
 from time import time
-from ProjectUtils.edit_text_file_global import *
+from ProjectUtils.edit_text_file import *
+from ProjectUtils.config_editor import *
 from typing import Any, Dict, NamedTuple, Union
 
 class SlurmJob(NamedTuple):
@@ -49,11 +50,13 @@ class SlurmQueueClient:
         ### HERE: schedule the slurm job, retrieve the jobid from command line output        
         ### totaljobs/jobid defines the suffix of the files we will use
         jobid = self.totaljobs
-        create_dat_general(parameters, jobid, self.output_dir)
-        create_yaml(jobid, self.output_dir)
+
+        config_data = ReadJsonFile(config)
+        init_file = config_data["reco"]["INIT_ALIGN_FILE"]
+        sector = config_data["calibration"]["SECTOR"]
+        create_dat_general(parameters, jobid, self.output_dir, init_file, sector)
         
-        slurmjobnum = self.submit_slurm_job(jobid, scriptname, config)
-        
+        slurmjobnum = self.submit_slurm_job(jobid, scriptname, config)        
         self.jobs[jobid] = SlurmJob(jobid, slurmjobnum, parameters) 
         self.totaljobs += 1
         return jobid

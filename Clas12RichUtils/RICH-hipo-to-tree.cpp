@@ -59,6 +59,8 @@ void fillTree(const char* file, RICHOutput& outobj){
       
       int aerolayer = RICHpart.getInt("emilay",ir); // check indexing of these
       int aerocomp = RICHpart.getInt("emico",ir);
+      int sector = -1; // set later in photon loop, when we get access to sector info...
+      
       std::vector<double> chRecVec;
       std::vector<int> topologyVec;
       std::vector<int> sphericalVec;
@@ -68,6 +70,8 @@ void fillTree(const char* file, RICHOutput& outobj){
       for(int ip = 0; ip < RICHring.getRows(); ip++){
 	// if photon from same track as current RICHpart
 	if( RICHring.getInt("pindex",ip) == pindex){
+	  if(sector == -1) sector = RICHring.getByte("sector",ip);
+	  
 	  double chRec = RICHring.getFloat("etaC",ip);
 	  int use = int(RICHring.getByte("use",ip));
 	  
@@ -120,7 +124,7 @@ void fillTree(const char* file, RICHOutput& outobj){
 	}
       }
       
-      outobj.Fill(aerolayer,aerocomp,ebpid,chRecVec,topologyVec,
+      outobj.Fill(sector,aerolayer,aerocomp,ebpid,chRecVec,topologyVec,
 		  beta, p, theta, phi, emix, emiy, emiz,
 		  trackx, tracky, trackz, RICHid,
 		  planarVec, sphericalVec, nRefVec

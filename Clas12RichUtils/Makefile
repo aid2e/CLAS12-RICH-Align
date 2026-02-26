@@ -16,6 +16,7 @@ LDFLAGS  := $(ROOT_LIBS) $(HIPO_LIBS)
 
 SRCS := \
     RICH-hipo-to-tree.cpp \
+    RICH-hipo-to-tree-mchi2.cpp \
     HIPO-chunk-skim.cpp \
     RICH-skim-dst-modular-onetop.cpp \
 

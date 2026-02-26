@@ -5,7 +5,7 @@ from ax.api.protocols.metric import IMetric
 from ax.api.protocols.runner import IRunner, TrialStatus
 from ax.api.types import TParameterization
 
-from .slurm_utilities_global import get_slurm_queue_client
+from .slurm_utilities import get_slurm_queue_client
 
 # could probably condense this with SlurmQueueClient at this point
 class SlurmJobRunner(IRunner):  # Deploys trials to external system.
@@ -31,8 +31,7 @@ class SlurmJobRunner(IRunner):  # Deploys trials to external system.
         job_id = slurm_job_queue.schedule_job_with_parameters(
             parameters=parameterization,
             scriptname=self.scriptname,
-            config=self.config
-            
+            config=self.config,            
         )
 
         return {"job_id": job_id}

@@ -33,8 +33,9 @@ if [ -f "${OUTPUT_DIR}/rich/log/hipo_files/output_$1.hipo" ]; then
 fi
 
 cd ${AIDE_HOME}
-# Assumes that ccdb was already set up with all correct tables except alignment for this trial (e.g. statuses, aerogel table, ...)
-ccdb add /geometry/rich/module${MODULE}/alignment -v ${VARIATION} ${OUTPUT_DIR}/rich/tables/rich_m1_alignment_$1.dat
+# Assumes that ccdb was already set up with all correct tables except alignment for this trial (e.g. statuses, aerogel table, ...).
+# workaround script from when ccdb was not properly installed in the container
+{AIDE_HOME}/ccdb_test_script.py add /geometry/rich/module${MODULE}/alignment -v ${VARIATION} ${OUTPUT_DIR}/rich/tables/rich_m1_alignment_$1.dat
 
 recon-util -y ${YAML_FILE} -i ${INPUT_HIPO} -o ${OUTPUT_DIR}/rich/log/hipo_files/output_$1.hipo
 

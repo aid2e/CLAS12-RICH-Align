@@ -31,6 +31,7 @@ SkimConfig loadConfig(const std::string& path) {
     if(j.contains("planarMirror2"))  cfg.planarMirror2   = j["planarMirror2"].get<int>();
     if(j.contains("sphericalMirror"))  cfg.sphericalMirror   = j["sphericalMirror"].get<int>();
     if(j.contains("minPhotons"))  cfg.minPhotons   = j["minPhotons"].get<int>();
+    if(j.contains("minP"))  cfg.minP   = j["minP"].get<double>();
     if(j.contains("maxev"))  cfg.maxev   = j["maxev"].get<int>();
     if(j.contains("maxPerTile"))  cfg.maxPerTile   = j["maxPerTile"].get<int>();
     if(j.contains("validPIDs"))        cfg.validPIDs         = j["validPIDs"].get<std::vector<int>>();
@@ -111,7 +112,7 @@ bool isGoodDISEvent(hipo::bank particles){
   return true;
 }
 // check that there is ONE hadron in (either) rich
-bool oneInRICH(hipo::bank RICHparticles, hipo::bank particles, const std::vector<int>& validPIDs, double mchi2cut){
+bool oneInRICH(hipo::bank RICHparticles, hipo::bank particles, const std::vector<int>& validPIDs, double mchi2cut, double minP){
   //int hadm1 = 0;
   //int hadm2 = 0;
   // for rgc and later, check both modules
@@ -123,9 +124,8 @@ bool oneInRICH(hipo::bank RICHparticles, hipo::bank particles, const std::vector
   double py = particles.getFloat("py",pindex);
   double pz = particles.getFloat("pz",pindex);
   double p = sqrt(px*px+py*py+pz*pz);
-
-  // TODO: remove this? Was for electrons specifically
-  if(p > 5) return false;
+  
+  if(p < minP) return false;
   
   if (mchi2 <= mchi2cut) {
     return false;
@@ -448,7 +448,7 @@ void skimDST(const char* file,
         // Apply optional cuts
         if(cfg.applyDISCut && !isGoodDISEvent(particles)) continue; //{std::cout << "Cut for DIS\n"; continue;}
         if(cfg.applyRichOneCut && !oneInRICH(RICHpart, particles,
-					     cfg.validPIDs, -1)) continue; //{stats.nOneInRICHCut++; std::cout << "Cut for one in RICH\n"; continue;}
+					     cfg.validPIDs, -1, cfg.minP)) continue; //{stats.nOneInRICHCut++; std::cout << "Cut for one in RICH\n"; continue;}
         
 	// count reflections
 	// replace this with a function that checks for the exact topology we want

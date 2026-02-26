@@ -20,19 +20,24 @@ class SlurmQueueClient:
     metrics = None
     output_dir = None
     
-    def submit_slurm_job(self, jobnum, scriptname, config):        
+    def submit_slurm_job(self, jobnum, scriptname, config):
+        config_data = ReadJsonFile(config)        
+        account = config_data["jobs"]["ACCOUNT"]
+        partition = config_data["jobs"]["PARTITION"]
+        time_limit = config_data["jobs"]["TIME_LIMIT"]
+        memory = config_data["jobs"]["MEMORY"]
         # assuming we have one bash script to run per job
         with open(self.output_dir+"/jobconfig_{}.slurm".format(jobnum),"w") as file:
             file.write("#!/bin/bash\n")
-            file.write("#SBATCH --job-name=rich-align-mobo\n")
-            file.write("#SBATCH --account=vossenlab\n")
-            file.write("#SBATCH --partition=scavenger\n")
-            file.write("#SBATCH --mem=6G\n")
+            file.write("#SBATCH --job-name=rich-align-bo\n")
+            file.write(f"#SBATCH --account={account}\n")
+            file.write(f"#SBATCH --partition={partition}\n")
+            file.write(f"#SBATCH --mem={memory}\n")
             file.write("#SBATCH --cpus-per-task=1\n")
-            file.write("#SBATCH --time=04:00:00\n") 
+            file.write(f"#SBATCH --time={time_limit}\n") 
             file.write("#SBATCH --output="+self.output_dir+f"/log/job_output/drich-mobo_{jobnum}.out\n")
             file.write("#SBATCH --error="+self.output_dir+f"/log/job_output/drich-mobo_{jobnum}.err\n")
-            file.write(str(os.environ["AIDE_HOME"])+'/Clas12RichUtils/{} {} {}'.format(scriptname,jobnum,config))
+            file.write(f'{os.environ["AIDE_HOME"]}/Clas12RichUtils/{scriptname} {jobnum} {config}\n')
         print("starting slurm job ", jobnum)
         shellcommand = ["sbatch","--export=ALL",self.output_dir+"/jobconfig_{}.slurm".format(jobnum)]
         

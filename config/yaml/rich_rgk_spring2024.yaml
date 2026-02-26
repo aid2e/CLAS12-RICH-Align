@@ -1,0 +1,26 @@
+configuration:
+  io-services:
+    writer:
+      compression: 2
+  services:
+    MAGFIELDS:
+      magfieldSolenoidMap: Symm_solenoid_r601_phi1_z1201_13June2018.dat
+      magfieldTorusMap: Full_torus_r251_phi181_z251_25Jan2021.dat
+      variation: rgk_spring2024
+      timestamp: 12/03/2025-06:00:00
+    RICH:
+      variation: rgk_spring2024
+io-services:
+  reader:
+    class: org.jlab.clas.std.services.convertors.HipoToHipoReader
+    name: HipoToHipoReader
+  writer:
+    class: org.jlab.clas.std.services.convertors.HipoToHipoWriter
+    name: HipoToHipoWriter
+mime-types:
+- binary/data-hipo
+services:
+- class: org.jlab.clas.swimtools.MagFieldsEngine
+  name: MAGFIELDS
+- class: org.jlab.rec.rich.RICHEBEngine
+  name: RICH

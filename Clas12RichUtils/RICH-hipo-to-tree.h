@@ -66,6 +66,7 @@ public:
   RICHOutput(const std::string& treeName = "eleProtTree") {
     tree = new TTree(treeName.c_str(), "");
     // integers
+    tree->Branch("sector",   &sector,   "sector/I");
     tree->Branch("aerolayer",   &aerolayer,   "aerolayer/I");
     tree->Branch("aerocomp",     &aerocomp,     "aerocomp/I");
     tree->Branch("ebpid",        &ebpid,        "ebpid/I");
@@ -91,7 +92,8 @@ public:
   }
 
   /// Fill one “event” (you can call this repeatedly)
-  void Fill(int aerolayer_,
+  void Fill(int sector_,
+	    int aerolayer_,
 	    int aerocomp_,
 	    int ebpid_,
 	    const std::vector<double>& chRecScaled_,
@@ -111,6 +113,7 @@ public:
 	    const std::vector<int>& sphericalVec_,
 	    const std::vector<int>& nRefVec_)
   {
+    sector      = sector_;
     aerolayer   = aerolayer_;
     aerocomp    = aerocomp_;
     ebpid       = ebpid_;
@@ -143,6 +146,7 @@ public:
 
 private:
   TTree*                tree         = nullptr;
+  int                   sector       = 0;
   int                   aerolayer    = 0;
   int                   aerocomp     = 0;
   int                   ebpid        = 0;

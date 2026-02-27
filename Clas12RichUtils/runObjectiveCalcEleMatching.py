@@ -12,10 +12,12 @@ from typing import Callable, Tuple, Optional
 
 '''
 Script for producing alignment metric from a single root file,
-corresponding to one dataset (inbending or outbending).
+corresponding to inbending tracks (e- for inbending, pi+ for outbending).
 '''
 
 jobid = sys.argv[1]
+align_sector = int(sys.argv[2])
+output_dir = sys.argv[3]
 
 tiles_by_layer = {201:range(1,17),202:range(1,23),
                  203:range(1,33)
@@ -40,6 +42,7 @@ def calc_cher_residual_generic(
     tree = file[file.keys()[0]]
 
     # reconstructed cherenkov angle info
+    sector      = tree['sector'].array(library='np')
     aerolayer   = tree['aerolayer'].array(library='np')
     aerocomp    = tree['aerocomp'].array(library='np')
     ebpid       = tree['ebpid'].array(library='np')
@@ -69,6 +72,7 @@ def calc_cher_residual_generic(
             & (ebpid == ebpid_select)
             & (nphotons > 2)
             & (p < 5)
+            & (sector == align_sector)
         )
         # photon-level selection based on topology
         if mode == "direct":
@@ -145,11 +149,13 @@ def calc_cher_residual_layers_generic(
     return dict(all_resid)
 
 # Collect single-photons cherenkov angle distributions separated by layer/tile/topology
-file_ele = os.environ["OUTPUT_DIR"]+f"/rich/log/root_files/output_spherical_{jobid}.root"
+pid_select = 11
+scale_angle = False
+file_ele = output_dir+f"/rich/log/root_files/output_{jobid}.root"
 print("starting direct")
-cher_dist_direct    = calc_cher_residual_layers_generic(file_ele, tiles_by_layer, scale_angle=False,
+cher_dist_direct    = calc_cher_residual_layers_generic(file_ele, tiles_by_layer, scale_angle=scale_angle,
                                                                 mode="direct",
-                                                                ebpid_select=11)
+                                                                ebpid_select=pid_select)
 # and for your mirror‐by‐mirror splits:
 mirrors_row1 = [21,25,22]
 mirrors_row2 = [28,29,30,23,26,27,24]
@@ -157,14 +163,14 @@ mirrors_row2 = [28,29,30,23,26,27,24]
 cher_dist_spher_row1  = defaultdict(dict)
 cher_dist_spher_row2  = defaultdict(dict)
 
-mirrors_planar = [11,14,15,16,17] # 1 reflection topology planar mirrors
+mirrors_planar = [14,15,16,17] # 1 reflection topology planar mirrors
 cher_dist_planar  = defaultdict(dict)
 
 for m in mirrors_planar:
     print(m)
     print("ele")
     cher_dist_planar[m] = calc_cher_residual_layers_generic(
-            file_ele, tiles_by_layer, planar_mirror=m, ebpid_select=11, scale_angle=False,
+            file_ele, tiles_by_layer, planar_mirror=m, ebpid_select=pid_select, scale_angle=scale_angle,
             mode="planar"
         )
 
@@ -173,7 +179,7 @@ for m in mirrors_row1:
         print(m,p)
         cher_dist_spher_row1[m][p] = calc_cher_residual_layers_generic(
             file_ele, tiles_by_layer, planar_mirror=p, spherical_mirror=m,
-            ebpid_select=11, scale_angle=False,
+            ebpid_select=pid_select, scale_angle=scale_angle,
             mode="spherical"
         )
 
@@ -182,7 +188,7 @@ for m in mirrors_row2:
         print(m,p)
         cher_dist_spher_row2[m][p] = calc_cher_residual_layers_generic(
             file_ele, tiles_by_layer, planar_mirror=p, spherical_mirror=m,
-            ebpid_select=11, scale_angle=False,
+            ebpid_select=pid_select, scale_angle=scale_angle,
             mode="spherical"
         )
 
@@ -205,7 +211,7 @@ def mean_from_histo_peak(data, bins=80, data_range=None):
     arr = np.asarray(data)
     arr = arr[np.isfinite(arr)]
     if arr.size <= 25:
-        return ufloat(0.0, 0.0)    
+        return 0.0
     
     counts, edges = np.histogram(arr, bins=bins, range=data_range)
     if counts.sum() == 0:
@@ -221,12 +227,18 @@ def mean_from_histo_peak(data, bins=80, data_range=None):
     if w.sum() == 0:
         return 0.0
     return float(np.average(x, weights=w))
-
+'''
 def spread_metric(means, widths):
     mean_bar = float(np.mean(means)) # average of peak position of topologies 
     diff_term = float(np.sum((means - mean_bar)**2) / len(means))
     width_bar  = float(np.mean(widths**2)) # average width of topologies
     return diff_term / (width_bar + 1e-9)
+'''
+def spread_metric(means, widths):
+    mean_bar = float(np.mean(means)) # average of peak position of topologies 
+    diff_term = float(np.sum(((means - mean_bar)**2)/(widths**2))) / len(means)
+    #width_bar  = float(np.mean(widths**2)) # average width of topologies
+    return diff_term # / (width_bar + 1e-9)
 
 def bootstrap_spread_metric(data_topos, # dict containing all topologies to be used,
                           n_boot: int = 300
@@ -319,7 +331,7 @@ for layer in tiles_by_layer.keys():
             cher_dist_direct,cher_dist_planar,cher_dist_spher_row1,cher_dist_spher_row2,
             layer=layer, tile=tile,
             bounds=(280, 350),
-            min_counts=500,
+            min_counts=1000,
         )
 
         if spread_together>0:
@@ -333,7 +345,7 @@ for layer in tiles_by_layer.keys():
 def get_width_sum_alltiles(
     data_dict,
     *,
-    min_counts = 500,
+    min_counts = 1000,
     bounds=(280.0, 350.0),  # range of single photon cherenkov angles accepted
     fallback_width=20.0, # when not enough data
     bootstrap=True,
@@ -364,16 +376,16 @@ def get_width_sum_alltiles(
                 boot_spreads[b] = iqr(samp)
             tile_mean = float(np.mean(boot_spreads))
             tile_std  = float(np.std(boot_spreads, ddof=1))
-            total += (ufloat(tile_mean, tile_std)/(4))**2
+            total += (ufloat(tile_mean, tile_std)/4.)**2
             total_tiles += 1
     if total_tiles == 0:
-        return 0
+        return ufloat(fallback_width, 0.0) # do we punish here?
     else:
         return total/total_tiles
 iqr_sum = ufloat(0,0)
 n_topos = 0
 
-for i in [21,25,22]:
+for i in mirrors_row1:
     iqr_sum += get_width_sum_alltiles(cher_dist_spher_row1[i][13])
     n_topos += 1
     iqr_sum += get_width_sum_alltiles(cher_dist_spher_row1[i][12])
@@ -384,7 +396,7 @@ for i in mirrors_row2:
     iqr_sum += get_width_sum_alltiles(cher_dist_spher_row2[i][13])
     terms[f'iqr_sph_{i}_13'] = get_width_sum_alltiles(cher_dist_spher_row2[i][13])
     n_topos += 1
-for i in [11,14,16]:
+for i in mirrors_planar:
     iqr_sum += get_width_sum_alltiles(cher_dist_planar[i])
     terms[f'iqr_planar_{i}'] = get_width_sum_alltiles(cher_dist_planar[i])
     n_topos += 1
@@ -396,19 +408,23 @@ terms[f'iqr_direct'] = get_width_sum_alltiles(cher_dist_direct)
 combined_metric = (distance_sum[201] + distance_sum[202] +
                   distance_sum[203] + 
                   iqr_sum)
-np.savetxt(os.environ["AIDE_HOME"]+"/log/results/" + "rich-align-mobo-out_{}.txt".format(jobid),np.array([combined_result.n,combined_result.s]))
+np.savetxt(output_dir+"/log/results/" + "rich-align-mobo-out_{}.txt".format(jobid),np.array([combined_metric.n,combined_metric.s]))
 
 import pandas as pd
 # Flatten into {name_value: n, name_uncertainty: s}
 data = {}
 for name, val in terms.items():
-    data[f"{name}_value"] = val.n  # nominal value
-    data[f"{name}_uncertainty"] = val.s  # std dev
-
+    if hasattr(val, "n") and hasattr(val, "s"):
+        data[f"{name}_value"] = val.n # central value
+        data[f"{name}_uncertainty"] = val.s # uncertainty
+    else:
+        # if, somehow, one of the terms returned something that wasn't a ufloat
+        data[f"{name}_value"] = float(val)
+        data[f"{name}_uncertainty"] = 0.0
 
 df = pd.DataFrame([data])
 # Save csv of all terms in metric
-df.to_csv(os.environ["AIDE_HOME"]+"/log/results/"+f"results_allterms_{jobid}.csv", index=False)
+df.to_csv(output_dir+"/log/results/"+f"results_allterms_{jobid}.csv", index=False)
 
 if math.isnan(combined_metric.n):
     print("metric returned NaN or 0, flag failure")

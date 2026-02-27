@@ -1,17 +1,17 @@
-#include "RICH-skim-dst-modular-onetop.h"
+#include "RICH-skim-onetop.h"
 #include "RICH-reflection-tools.h"
 #include "TCanvas.h"
 #include "TVector3.h"
 #include "TLorentzVector.h"
 #include <sstream>
 #include <iostream>
+#include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 //using namespace std;
 
-TH1F* hAvgCher;
 SkimConfig loadConfig(const std::string& path) {
     SkimConfig cfg;
     std::ifstream in(path);
@@ -30,9 +30,11 @@ SkimConfig loadConfig(const std::string& path) {
     if(j.contains("planarMirror2"))  cfg.planarMirror2   = j["planarMirror2"].get<int>();
     if(j.contains("sphericalMirror"))  cfg.sphericalMirror   = j["sphericalMirror"].get<int>();
     if(j.contains("minPhotons"))  cfg.minPhotons   = j["minPhotons"].get<int>();
+    if(j.contains("minP"))  cfg.minP   = j["minP"].get<double>();
     if(j.contains("maxev"))  cfg.maxev   = j["maxev"].get<int>();
     if(j.contains("maxPerTile"))  cfg.maxPerTile   = j["maxPerTile"].get<int>();
     if(j.contains("validPIDs"))        cfg.validPIDs         = j["validPIDs"].get<std::vector<int>>();
+    if(j.contains("sector"))        cfg.sector         = j["sector"].get<int>();
     return cfg;
 }
 
@@ -78,7 +80,9 @@ double getMass(int pid){
   }
   return mass;
 }
-// check if there is a reconstructed electron in the event
+
+// check if there is a reconstructed electron and hadron in the event
+// TODO: based on name, this should have some Q2/W cut
 bool isGoodDISEvent(hipo::bank particles){
 
   double eleP = 0;
@@ -109,7 +113,7 @@ bool isGoodDISEvent(hipo::bank particles){
   return true;
 }
 // check that there is ONE hadron in (either) rich
-bool oneInRICH(hipo::bank RICHparticles, hipo::bank particles, const std::vector<int>& validPIDs, double mchi2cut){
+bool oneInRICH(hipo::bank RICHparticles, hipo::bank particles, const std::vector<int>& validPIDs, double mchi2cut, double minP){
   //int hadm1 = 0;
   //int hadm2 = 0;
   // for rgc and later, check both modules
@@ -121,8 +125,8 @@ bool oneInRICH(hipo::bank RICHparticles, hipo::bank particles, const std::vector
   double py = particles.getFloat("py",pindex);
   double pz = particles.getFloat("pz",pindex);
   double p = sqrt(px*px+py*py+pz*pz);
-
-  if(p > 5) return false;
+  
+  if(p < minP) return false;
   
   if (mchi2 <= mchi2cut) {
     return false;
@@ -168,8 +172,12 @@ bool isGoodDirectEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::bank part
       if(RICHring.getInt("pindex",ip) != pindex) continue;
       float etaC = RICHring.getFloat("etaC",ip);
       int use = int(RICHring.getByte("use",ip));
+
+      int sector = int(RICHring.getByte("sector",ip));
+      if(sector != cfg.sector) continue;
+
       if(etaC == 0 || use < 11 || use > 111 ) continue; // use!=111
-      
+
       avgetaC += etaC;
       nphotons++;
       auto [nref,_r1,top,refl] = DecodePhotonPath(
@@ -197,6 +205,10 @@ bool isGoodPlanarEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::bank part
       if(RICHring.getInt("pindex",ip) != pindex) continue;
       float etaC = RICHring.getFloat("etaC",ip);
       int use = int(RICHring.getByte("use",ip));
+
+      int sector = int(RICHring.getByte("sector",ip));
+      if(sector != cfg.sector) continue;
+
       if(etaC == 0 || use < 11 || use > 111) continue; // use!=111
       
       auto [nref,mirr1,top,refl] = DecodePhotonPath(
@@ -230,6 +242,10 @@ bool isGoodSphericalEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::bank p
       if(RICHring.getInt("pindex",ip) != pindex) continue;
       float etaC = RICHring.getFloat("etaC",ip);
       int use = int(RICHring.getByte("use",ip));
+
+      int sector = int(RICHring.getByte("sector",ip));
+      if(sector != cfg.sector) continue; // continue or just return false if photons in wrong sector?
+
       //if(etaC == 0 || use < 10) continue; // use!=111                                                                                                             
       if(etaC == 0 || use < 11 || use > 111) continue;
       
@@ -242,7 +258,6 @@ bool isGoodSphericalEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::bank p
 	int sphmirror = -1;
 	int planmirror = -1;
 	for(int ir = 0; ir < refl.size(); ir++){
-	  //std::cout << "ir " << ir << " refl[ir]: " << refl[ir] << std::endl;
 	  if(refl[ir] > 20){
 	    sphmirror = refl[ir];
 	  }
@@ -250,7 +265,6 @@ bool isGoodSphericalEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::bank p
 	    planmirror = refl[ir];
 	  }
 	}
-	//if(sphmirror != -1) std::cout << "Photon " << ip << " Sph: " << sphmirror << " Plan: " << planmirror << std::endl;
 	if(sphmirror == cfg.sphericalMirror && planmirror == cfg.planarMirror && layer == cfg.aerolayer){
 	  nphotons++;
 	}
@@ -277,6 +291,9 @@ bool isGoodThreeReflEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::bank p
       float etaC = RICHring.getFloat("etaC",ip);
       int use = int(RICHring.getByte("use",ip));
       //if(etaC == 0 || use < 10) continue; // use!=111                                                                                                             
+      int sector = int(RICHring.getByte("sector",ip));
+      if(sector != cfg.sector) continue;
+
       if(etaC == 0 || use < 11 || use > 111) continue;
       
       auto [nref,mirr1,top,refl] = DecodePhotonPath(
@@ -290,7 +307,6 @@ bool isGoodThreeReflEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::bank p
 	int planmirror2 = -1;
 	int nplanar = 0;
 	for(int ir = 0; ir < refl.size(); ir++){
-	  //std::cout << "ir " << ir << " refl[ir]: " << refl[ir] << std::endl;
 	  if(refl[ir] > 20){
 	    sphmirror = refl[ir];
 	  }
@@ -302,7 +318,6 @@ bool isGoodThreeReflEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::bank p
 	    planmirror2 = refl[ir];
 	  }
 	}
-	//if(sphmirror != -1) std::cout << "Photon " << ip << " Sph: " << sphmirror << " Plan: " << planmirror << std::endl;
 	if(sphmirror == cfg.sphericalMirror && planmirror1 == cfg.planarMirror1 && planmirror2 == cfg.planarMirror2 && layer == cfg.aerolayer){
 	  nphotons++;
 	}
@@ -328,6 +343,9 @@ bool isGoodTwoPlanarReflEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::ba
       float etaC = RICHring.getFloat("etaC",ip);
       int use = int(RICHring.getByte("use",ip));
       //if(etaC == 0 || use < 10) continue; // use!=111                                                                                                             
+      int sector = int(RICHring.getByte("sector",ip));
+      if(sector != cfg.sector) continue;
+
       if(etaC == 0 || use < 11 || use > 111) continue;
       
       auto [nref,mirr1,top,refl] = DecodePhotonPath(
@@ -340,7 +358,6 @@ bool isGoodTwoPlanarReflEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::ba
 	int planmirror2 = -1;
 	int nplanar = 0;
 	for(int ir = 0; ir < refl.size(); ir++){
-	  //std::cout << "ir " << ir << " refl[ir]: " << refl[ir] << std::endl;
 	  if(refl[ir] <= 20 && nplanar==0){
 	    planmirror1 = refl[ir];
 	    nplanar++;
@@ -349,7 +366,6 @@ bool isGoodTwoPlanarReflEvent(hipo::bank RICHring, hipo::bank RICHpart, hipo::ba
 	    planmirror2 = refl[ir];
 	  }
 	}
-	//if(sphmirror != -1) std::cout << "Photon " << ip << " Sph: " << sphmirror << " Plan: " << planmirror << std::endl;
 	if(planmirror1 == cfg.planarMirror1 && planmirror2 == cfg.planarMirror2 && layer == cfg.aerolayer){
 	  nphotons++;
 	}
@@ -370,6 +386,9 @@ bool isGoodClusterEvent(hipo::bank RICHcluster, hipo::bank RICHpart, hipo::bank 
   int hindex = RICHpart.getInt("hindex", 0);
   
   if(hindex >= 0){
+    int sector = RICHcluster.getShort("sector",hindex);
+    if(sector != cfg.sector) return false;
+    
     int pmt = RICHcluster.getShort("pmt",hindex);
     float mchi2 = RICHpart.getFloat("mchi2",0);
     if(PMTSelection(pmt) && (mchi2>0)){
@@ -407,143 +426,135 @@ void skimDST(const char* file,
     std::cout << "Planar: " << cfg.planarMirror << " Sph mirror: " << cfg.sphericalMirror << std::endl;
     std::cout << "Planar1: " << cfg.planarMirror1 << " Planar2: " << cfg.planarMirror2 << std::endl;
     while(reader.next()) {
-      //std::cout << "Evnum: " << evnum << std::endl;
-        evnum++;
-        reader.read(event);
-        event.getStructure(particles);
-        event.getStructure(track);
-        event.getStructure(traj);
-        event.getStructure(RUNconfig);
-        event.getStructure(RECevent);
-        event.getStructure(RICHpart);
-        event.getStructure(RICHtdc);
-        event.getStructure(RICHring);
-        event.getStructure(RICHhadron);
-        event.getStructure(RICHcluster);
-	
-        // Apply optional cuts
-        if(cfg.applyDISCut && !isGoodDISEvent(particles)) continue; //{std::cout << "Cut for DIS\n"; continue;}
-        if(cfg.applyRichOneCut && !oneInRICH(RICHpart, particles,
-					     cfg.validPIDs, -1)) continue; //{stats.nOneInRICHCut++; std::cout << "Cut for one in RICH\n"; continue;}
-        
-	// count reflections
-	// replace this with a function that checks for the exact topology we want
-	if(cfg.topologyType == 0 && !isGoodDirectEvent(RICHring,RICHpart,particles,cfg)) continue; //{std::cout << "Cut for direct\n";continue;}
-	if(cfg.topologyType == 1 && !isGoodPlanarEvent(RICHring,RICHpart,particles,cfg)) continue; //{std::cout << "Cut for planar\n";continue;}
-	if(cfg.topologyType == 2 && !isGoodSphericalEvent(RICHring,RICHpart,particles,cfg)) continue; //{std::cout << "Cut for spherical\n";continue;}
-	if(cfg.topologyType == 3 && !isGoodThreeReflEvent(RICHring,RICHpart,particles,cfg)) continue; //{std::cout << "Cut for spherical\n";continue;}
-	if(cfg.topologyType == 4 && !isGoodTwoPlanarReflEvent(RICHring,RICHpart,particles,cfg)) continue; //{std::cout << "Cut for spherical\n";continue;}
-	if(cfg.topologyType == 5 && !isGoodClusterEvent(RICHcluster,RICHpart,particles,cfg)) continue; //{std::cout << "Cut for spherical\n";continue;}
-
-	// assuming one particle in the RICH cut is always applied
-	int layer = RICHpart.getInt("emilay", 0);
-	int tile = RICHpart.getInt("emico", 0);
-	if(stats.layerCounters[layer][tile] >= cfg.maxPerTile) continue;
-	stats.layerCounters[layer][tile]++;
-	
-	if(stats.nAccepted >= cfg.maxev) continue;
-        ++stats.nAccepted;
-        hipo::event outE;
-        outE.addStructure(RECevent);
-        outE.addStructure(track);
-        outE.addStructure(traj);
-        outE.addStructure(particles);
-        outE.addStructure(RICHpart);
-        outE.addStructure(RICHtdc);
-        outE.addStructure(RICHring);
-        outE.addStructure(RICHhadron);
-        outE.addStructure(RICHcluster);
-        outE.addStructure(RUNconfig);
-        outWriter.addEvent(outE);
+      
+      evnum++;
+      reader.read(event);
+      event.getStructure(particles);
+      event.getStructure(track);
+      event.getStructure(traj);
+      event.getStructure(RUNconfig);
+      event.getStructure(RECevent);
+      event.getStructure(RICHpart);
+      event.getStructure(RICHtdc);
+      event.getStructure(RICHring);
+      event.getStructure(RICHhadron);
+      event.getStructure(RICHcluster);
+      
+      // Apply optional cuts
+      if(cfg.applyDISCut && !isGoodDISEvent(particles)) continue; 
+      if(cfg.applyRichOneCut && !oneInRICH(RICHpart, particles,
+					   cfg.validPIDs, -1, cfg.minP)) continue;
+      
+      // count reflections
+      // replace this with a function that checks for the exact topology we want
+      if(cfg.topologyType == 0 && !isGoodDirectEvent(RICHring,RICHpart,particles,cfg)) continue; 
+      if(cfg.topologyType == 1 && !isGoodPlanarEvent(RICHring,RICHpart,particles,cfg)) continue; 
+      if(cfg.topologyType == 2 && !isGoodSphericalEvent(RICHring,RICHpart,particles,cfg)) continue; 
+      if(cfg.topologyType == 3 && !isGoodThreeReflEvent(RICHring,RICHpart,particles,cfg)) continue;
+      if(cfg.topologyType == 4 && !isGoodTwoPlanarReflEvent(RICHring,RICHpart,particles,cfg)) continue;
+      if(cfg.topologyType == 5 && !isGoodClusterEvent(RICHcluster,RICHpart,particles,cfg)) continue;
+      
+      // assuming one particle in the RICH cut is always applied TODO: make that cut non-optional
+      int layer = RICHpart.getInt("emilay", 0);
+      int tile = RICHpart.getInt("emico", 0);
+      if(stats.layerCounters[layer][tile] >= cfg.maxPerTile) continue;
+      stats.layerCounters[layer][tile]++;
+      
+      if(stats.nAccepted >= cfg.maxev) continue;
+      ++stats.nAccepted;
+      hipo::event outE;
+      outE.addStructure(RECevent);
+      outE.addStructure(track);
+      outE.addStructure(traj);
+      outE.addStructure(particles);
+      outE.addStructure(RICHpart);
+      outE.addStructure(RICHtdc);
+      outE.addStructure(RICHring);
+      outE.addStructure(RICHhadron);
+      outE.addStructure(RICHcluster);
+      outE.addStructure(RUNconfig);
+      outWriter.addEvent(outE);
     }    
 }
 
 int main(int argc, char* argv[]) {
   if(argc < 3) {
-        std::cout << "usage: RICH-ana [output file] [input hipo files...] [--config config.json]" << std::endl;
-        return 1;
+    std::cout << "usage: RICH-ana [output file] [input hipo files...] [--config config.json]" << std::endl;
+    return 1;
+  }
+  SkimConfig cfg;
+  int argi = 3;
+  for(; argi < argc; ++argi) {
+    if(std::strcmp(argv[argi], "--config") == 0 && argi+1 < argc) {
+      cfg = loadConfig(argv[++argi]);
     }
-    SkimConfig cfg;
-    int argi = 3;
-    for(; argi < argc; ++argi) {
-      if(std::strcmp(argv[argi], "--config") == 0 && argi+1 < argc) {
-	  cfg = loadConfig(argv[++argi]);
+  }
+  // before main loop over argv inputs:
+  std::vector<std::string> inputs;
+  for (int i = 2; i < argc; ++i) {
+    std::string a = argv[i];
+    if (!a.empty() && a[0] == '@') {
+      std::ifstream fin(a.substr(1));
+      std::string line;
+      while (std::getline(fin, line)) {
+	if (!line.empty()) inputs.push_back(line);
       }
-      // add other simple flags here if needed
+    } else if (a.rfind("--",0) == 0) {
+      break;
+      // flags — handle as you do now
+    } else {
+      inputs.push_back(a);
     }
-    // before main loop over argv inputs:
-    std::vector<std::string> inputs;
-    for (int i = 2; i < argc; ++i) {
-      std::string a = argv[i];
-      if (!a.empty() && a[0] == '@') {
-	std::ifstream fin(a.substr(1));
-	std::string line;
-	while (std::getline(fin, line)) {
-	  if (!line.empty()) inputs.push_back(line);
-	}
-      } else if (a.rfind("--",0) == 0) {
-	break;
-	// flags — handle as you do now
-      } else {
-	inputs.push_back(a);
-      }
+  }
+  // then open each from `inputs`
+  hipo::reader dum;
+  dum.open(inputs[0].c_str());
+  hipo::dictionary dict;
+  dum.readDictionary(dict);
+  hipo::writer writer;
+  for(auto name: {"REC::Event","REC::Particle","REC::Track","REC::Traj",
+		  "RICH::Particle","RICH::Ring","RICH::Hadron","RICH::tdc","RUN::config",
+		  "RICH::Cluster"
+    }){
+    writer.getDictionary().addSchema(dict.getSchema(name));
+  }
+  writer.open(argv[1]);
+  
+  CounterStats stats(cfg);
+  for(int i=0; i<inputs.size(); ++i) {
+    std::string arg = inputs[i];
+    if(stats.nAccepted >= cfg.maxev) {std::cout<< "Skipping file, already full\n"; continue;}
+    
+    if(i > 10 && stats.nAccepted == 0){
+      std::cout << "Already read 10 files and no events kept, something probably wrong. Ending \n"; break;
     }
-    // then open each from `inputs`
-    hipo::reader dum;
-    dum.open(inputs[0].c_str());
-    hipo::dictionary dict;
-    dum.readDictionary(dict);
-    hipo::writer writer;
-    for(auto name: {"REC::Event","REC::Particle","REC::Track","REC::Traj",
-                    "RICH::Particle","RICH::Ring","RICH::Hadron","RICH::tdc","RUN::config",
-		    "RICH::Cluster"
-      }){
-        writer.getDictionary().addSchema(dict.getSchema(name));
-    }
-    writer.open(argv[1]);
-    hAvgCher = new TH1F(
-			"hAvgCher",
-			"Average Cherenkov Angle;#theta_{C} [rad];Counts",
-			100, 0.2, 0.4
-			);
-
-    CounterStats stats(cfg);
-    //for(int i=2; i<argc; ++i) {
-    for(int i=0; i<inputs.size(); ++i) {
-      std::string arg = inputs[i];
-      //if(arg.rfind("--",0) == 0) break; // stop at options
-      if(stats.nAccepted >= cfg.maxev) {std::cout<< "Skipping file, already full\n"; continue;}
-      
-      if(i > 10 && stats.nAccepted == 0){
-	std::cout << "Already read 10 files and no events kept, something probably wrong. Ending \n"; break;
-      }
-      std::cout << "Processing: "<< arg << std::endl;
-      skimDST(arg.c_str(), writer, cfg, stats);
-    }
-
-    std::cout << "Total events accepted:      " << stats.nAccepted       << "\n"
-         << "Total direct events cut:    " << stats.nCutDirect      << "\n"
-         << "Total oneInRICH cuts:       " << stats.nOneInRICHCut  << "\n"
-         << "Total DIS layer cuts:       " << stats.nLayerCut      << "\n"
-	 << "Total Mean angle cuts:       " << stats.nCherCut      << "\n"
-         << "Total per‑tile cuts:        " << stats.nLayerCountCut << "\n"
-         << "Total mirror count cuts:    " << stats.nMirrorCut     << "\n"
-         << "Total photon‑count cuts:    " << stats.nPhotonCountCut<< std::endl;
-    std::cout << "final mirror counts: " << std::endl;
-    for(int i = 0; i < stats.planarCounters.size(); i++){
-      std::cout << i+1 << ": " << stats.planarCounters[i] << std::endl;
-    }
-    std::cout << "final spherical mirror counts: " << std::endl;
-    for(int i = 0; i < stats.sphericalCounters.size(); i++){
-      std::cout << i+1 << ": " << stats.sphericalCounters[i] << std::endl;
-    }
-    writer.close();
-
-    TCanvas c("c","c",800,600);
-    hAvgCher->Draw();
-    c.SaveAs("log/plots/avgCherAngle.pdf");
-
-    return 0;
+    std::cout << "Processing: "<< arg << std::endl;
+    skimDST(arg.c_str(), writer, cfg, stats);
+  }
+  
+  std::cout << "Total events accepted:      " << stats.nAccepted       << "\n"
+	    << "Total direct events cut:    " << stats.nCutDirect      << "\n"
+	    << "Total oneInRICH cuts:       " << stats.nOneInRICHCut  << "\n"
+	    << "Total DIS layer cuts:       " << stats.nLayerCut      << "\n"
+	    << "Total Mean angle cuts:       " << stats.nCherCut      << "\n"
+	    << "Total per‑tile cuts:        " << stats.nLayerCountCut << "\n"
+	    << "Total mirror count cuts:    " << stats.nMirrorCut     << "\n"
+	    << "Total photon‑count cuts:    " << stats.nPhotonCountCut<< std::endl;
+  std::cout << "final mirror counts: " << std::endl;
+  for(int i = 0; i < stats.planarCounters.size(); i++){
+    std::cout << i+1 << ": " << stats.planarCounters[i] << std::endl;
+  }
+  std::cout << "final spherical mirror counts: " << std::endl;
+  for(int i = 0; i < stats.sphericalCounters.size(); i++){
+    std::cout << i+1 << ": " << stats.sphericalCounters[i] << std::endl;
+  }
+  writer.close();
+  
+  if(stats.nAccepted == 0){
+    std::remove(argv[1]);
+  }
+  
+  return 0;
 }
 
 

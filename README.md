@@ -78,13 +78,9 @@ The following are descriptions of fields to edit for your own slurm and alignmen
 * ```"MEMORY"```: memory request per slurm job, recommended "6G"
 
 ### 3. Run alignment
+Once configured, run optimization in a long-running slurm job via
 
-### 4. Outputs
+```python turbo_slurm_ax_1.0.py -c optimization.config -d parameters.config```.
 
-
-
-
-
-
-
+The CSV file containing information on each trial will then be stored at "CSV_DIR". TODO: Automatically identify the best trial and store it somewhere, and produce 1-2 validation plots. 
 

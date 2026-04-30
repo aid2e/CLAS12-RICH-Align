@@ -36,3 +36,55 @@ Two configuration files are used to define the alignment parameter search space 
 * ```parameters.config```: definition of alignment parameter search space (```parameters_global.config```: global alignment only, ```parameters_planarALL_sphALL.config```: all optical component parameters). These files should not need to be edited for use unless changes to the search space are needed, e.g. expanding/tightening parameter bounds. 
 
 ## Workflow
+### 1. Event selection
+TODO: This needs to be streamlined, should take maybe 3 arguments (where to store config files, where to store skimmed hipo files, list of hipo files to read), produce a slurm script that can be immediately submitted and takes care of merger automatically.
+### 2. Edit configuration file
+The following are descriptions of fields to edit for your own slurm and alignment configuration.
+
+#### Paths (output path information)
+* ```"LOG_DIR"```: location for slurm out/error files,
+* ```"CSV_DIR"```: location for final CSV storing all trial information (small, one per alignment run),
+* ```"OUTPUT_DIR"```: where per-trial CCDB tables, CCDB copies, HIPO and ROOT files will be stored (recommend setting this to a temporary storage location e.g. /volatile/),
+* ```"OUTPUT_NAME```: base name used for outputs for this alignment run, e.g. "rgk_spring2024_runone"
+
+#### Scripts (must be edited for global vs optical component alignment)
+* ```"RECO_SCRIPT_NAME"```: "runContainerReconstructionConfig.sh" if reconstruction done in container, runReconstructionConfig.sh if not in container.
+* ```"ANA_SCRIPT_NAME"```: "runObjectiveCalcMchi2.py" for global alignment, "runObjectiveCalcPionMatchingSeparated.py" for all optical component alignment.
+
+#### Calibration (information on dataset and RICH module/sector)
+* ```"SECTOR"```: RICH sector (1 or 4, int),
+* ```"MODULE"```: RICH module number (1 or 2, int),
+* ```"HIPO_FILE"```: merged hipo file containing dataset to be used for this alignment step
+
+#### Reco (information for coatjava and CCDB)
+* ```"VARIATION"```: ccdb variation (corresponds with dataset e.g. rgk_spring2024).
+* ```"CCDB_USERNAME"```: username for adding to ccdb copy.
+* ```"CCDB_FILE"```: starting CCDB sqlite file (should be pre-filled with RICH time calibration and defaults for all other RICH tables).
+* ```"YAML_FILE"```: yaml file passed to ```recon-util``` for reconstruction.
+* ```"INIT_ALIGN_FILE"```: initial alignment parameters table used for this step. When runnning optical component alignment, this should have global alignment parameters already filled.
+
+#### Optimization (information for the optimizer)
+* ```"METRIC_NAME"```: only used internally and in final csv.
+* ```"load_previous_trials"```: 0 if starting from scratch, 1 if resuming an alignment run. See below for instructions on resuming alignment.
+* ```"n_sobol"```: number of initial space-filling trials generated with Sobol sequence.
+* ```"n_mobo"```: total number of TuRBO trials to carry out.
+* ```"n_batch_sobol"```: batch size for initial Sobol trials (evaluated in parallel)
+* ```"n_batch_mobo"```: batch size for TuRBO trials (evaluated in parallel)
+
+#### Jobs (information for slurm jobs)
+* ```"ACCOUNT"```: slurm account,
+* ```"PARTITION"```: slurm partition,
+* ```"TIME_LIMIT"```: job time limit (on DCC, recommended "04:00:00" for optical component alignment, "00:30:00" for global alignment), 
+* ```"MEMORY"```: memory request per slurm job, recommended "6G"
+
+### 3. Run alignment
+
+### 4. Outputs
+
+
+
+
+
+
+
+

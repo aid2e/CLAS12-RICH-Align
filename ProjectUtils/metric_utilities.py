@@ -3,7 +3,7 @@ from typing import Any, Mapping
 
 from ax.api.protocols.metric import IMetric
 from ax.core.data import Data
-from .slurm_utilities_global import get_slurm_queue_client
+from .slurm_utilities import get_slurm_queue_client
 
 class SlurmJobMetric(IMetric):  # Pulls data for trial from external system.                                                     
     def __init__(self, name: str, output_dir: str, **kwargs):

@@ -13,7 +13,7 @@ def replace_line_in_file(file_path, line_number, new_line):
     else:
         print(f"Invalid line number: {line_number}")
         
-def create_dat_general(parameters, jobid, output_dir):
+def create_dat_general(parameters, jobid, output_dir, initial_file, sector):
     #create and edit alignment parameters text file to add to CLAS12 ccdb.
     # assume parameters named as "{param}_{layer}_{component}".
     # component == 0 is mis-alignment applied to full layer    
@@ -34,7 +34,8 @@ def create_dat_general(parameters, jobid, output_dir):
                         "global":1
                         }
     
-    dat_init = str(os.environ["AIDE_HOME"])+"/rich/tables/rich_m1_alignment_bestglobal_frommarco.dat"
+    #dat_init = str(os.environ["AIDE_HOME"])+"/rich/tables/rich_m1_alignment_bestglobal_frommarco.dat"
+    dat_init = initial_file
     dat_job = output_dir+"/rich/tables/rich_m1_alignment_{}.dat".format(jobid)
     shutil.copyfile(dat_init, dat_job)
 
@@ -42,37 +43,37 @@ def create_dat_general(parameters, jobid, output_dir):
     if any("201" in k for k in keys):
         # same for 201 and planar mirror 2
         line_number = line_number_dict["201"]
-        new_line = f"  4            201          0            0    0    {parameters['dz_201_0']}    {parameters['dthx_201_0']}    {parameters['dthy_201_0']}     0"
+        new_line = f"  {sector}            201          0            0    0    {parameters['dz_201_0']}    {parameters['dthx_201_0']}    {parameters['dthy_201_0']}     0"
         replace_line_in_file(dat_job, line_number, new_line)
         # matching planar
         line_number = line_number_dict["301"]["2"]
-        new_line = f"  4            301          2            0    0    {parameters['dz_201_0']}    {parameters['dthx_201_0']}    {parameters['dthy_201_0']}     0"
+        new_line = f"  {sector}            301          2            0    0    {parameters['dz_201_0']}    {parameters['dthx_201_0']}    {parameters['dthy_201_0']}     0"
         replace_line_in_file(dat_job, line_number, new_line)
     if any("202" in k for k in keys):
         # same for 202 and planar mirror 3
         line_number = line_number_dict["202"]
-        new_line = f"  4            202          0            0    0    {parameters['dz_202_0']}    {parameters['dthx_202_0']}    {parameters['dthy_202_0']}     0"
+        new_line = f"  {sector}            202          0            0    0    {parameters['dz_202_0']}    {parameters['dthx_202_0']}    {parameters['dthy_202_0']}     0"
         replace_line_in_file(dat_job, line_number, new_line)
         # matching planar
         line_number = line_number_dict["301"]["3"]
-        new_line = f"  4            301          3            0    0    {parameters['dz_202_0']}    {parameters['dthx_202_0']}    {parameters['dthy_202_0']}     0"
+        new_line = f"  {sector}            301          3            0    0    {parameters['dz_202_0']}    {parameters['dthx_202_0']}    {parameters['dthy_202_0']}     0"
         replace_line_in_file(dat_job, line_number, new_line)
     if any("203" in k for k in keys):
         # same for 203 and 204
         line_number = line_number_dict["203"]
-        new_line = f"  4            203          0            0    0    {parameters['dz_203_0']}    {parameters['dthx_203_0']}    {parameters['dthy_203_0']}     0"
+        new_line = f"  {sector}            203          0            0    0    {parameters['dz_203_0']}    {parameters['dthx_203_0']}    {parameters['dthy_203_0']}     0"
         replace_line_in_file(dat_job, line_number, new_line)
         line_number = line_number_dict["204"]
-        new_line = f"  4            204          0            0    0    {parameters['dz_203_0']}    {parameters['dthx_203_0']}    {parameters['dthy_203_0']}     0"
+        new_line = f"  {sector}            204          0            0    0    {parameters['dz_203_0']}    {parameters['dthx_203_0']}    {parameters['dthy_203_0']}     0"
         replace_line_in_file(dat_job, line_number, new_line)
     if any("global" in k for k in keys):
         line_number = line_number_dict["global"]
         if any("dthy_global" in k for k in keys):
             # if constraining global angles
-            new_line = f"  4            0            0            {parameters['dx_global_0']}    {parameters['dy_global_0']}    {parameters['dz_global_0']}    {parameters['dthx_global_0']}    {parameters['dthy_global_0']}    {parameters['dthz_global_0']}"
+            new_line = f"  {sector}            0            0            {parameters['dx_global_0']}    {parameters['dy_global_0']}    {parameters['dz_global_0']}    {parameters['dthx_global_0']}    {parameters['dthy_global_0']}    {parameters['dthz_global_0']}"
         else:
             # otherwise assume only shifts
-            new_line = f"  4            0            0            {parameters['dx_global_0']}    {parameters['dy_global_0']}    {parameters['dz_global_0']}    0    0    0"
+            new_line = f"  {sector}            0            0            {parameters['dx_global_0']}    {parameters['dy_global_0']}    {parameters['dz_global_0']}    0    0    0"
         replace_line_in_file(dat_job, line_number, new_line)
     # loop over mirrors
     for i in range(1, 8):
@@ -80,7 +81,7 @@ def create_dat_general(parameters, jobid, output_dir):
         if any(key in k for k in keys):
             line_num = line_number_dict["301"][str(i)]
             new_line = (
-                f"  4            301          {i}            0    0    "
+                f"  {sector}            301          {i}            0    0    "
                 f"{parameters[f'dz_301_{i}']}    "
                 f"{parameters[f'dthx_301_{i}']}    "
                 f"{parameters[f'dthy_301_{i}']}     0"
@@ -91,7 +92,7 @@ def create_dat_general(parameters, jobid, output_dir):
         if any(key in k for k in keys):
             line_num = line_number_dict["302"][str(i)]
             new_line = (
-                f"  4            302          {i}            0    0    "
+                f"  {sector}            302          {i}            0    0    "
                 f"{parameters[f'dz_302_{i}']}    "
                 f"{parameters[f'dthx_302_{i}']}    "
                 f"{parameters[f'dthy_302_{i}']}     0"
@@ -99,13 +100,13 @@ def create_dat_general(parameters, jobid, output_dir):
             replace_line_in_file(dat_job, line_num, new_line)
             
     return
-def create_yaml(jobid, output_dir):
+def create_yaml(jobid, output_dir, line_num):
     #create and edit yaml file                                                                                                      
     yaml_init = str(os.environ["AIDE_HOME"])+"/rich/yaml/rich.yaml"
     yaml_job = output_dir+"/rich/yaml/rich_{}.yaml".format(jobid)
     shutil.copyfile(yaml_init, yaml_job)
-    
-    line_number_yaml = 10#11 #old yaml
+    #line_num = 10
+    line_number_yaml = line_num#11 #old yaml
     new_line_yaml = str('      variation: variation_{}'.format(jobid))
 
     replace_line_in_file(yaml_job, line_number_yaml, new_line_yaml)

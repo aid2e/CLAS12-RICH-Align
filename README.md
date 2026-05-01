@@ -37,7 +37,21 @@ Two configuration files are used to define the alignment parameter search space 
 
 ## Workflow
 ### 1. Event selection
-TODO: This needs to be streamlined, should take maybe 3 arguments (where to store config files, where to store skimmed hipo files, list of hipo files to read), produce a slurm script that can be immediately submitted and takes care of merger automatically.
+Event selection is carried out with the C++ script defined in ```Clas12RichUtils/RICH-skim-onetop.cpp```. To generate the .json files passed to this script and a corresponding list of commands passed to slurm, run
+
+``` source setup.sh```
+
+``` python generate_topology_selection_configs.py --input-file [.txt list of hipo files to skim] --run-string [run number/chosen suffix] --datadir [directory to store resulting hipo files]```,
+
+which will then save the skim json files in the directory ```$AIDE_HOME/skim_files```. The file ```$AIDE_HOME/skim_files/skim_topology_commands.slurm``` will contain a list of commands executing ```RICH-skim-onetop``` for each json file, which can be run in individual slurm jobs via
+
+```
+#SBATCH --array=1-118
+cmd=$(sed -n "${SLURM_ARRAY_TASK_ID}p" skim_files/skim_topology_commands.slurm)
+srun bash -lc "$cmd"
+```
+TODO: add some automatic merger script here...
+
 ### 2. Edit configuration file
 The following are descriptions of fields to edit for your own slurm and alignment configuration.
 

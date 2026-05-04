@@ -162,6 +162,7 @@ def main() -> None:
     if args.aide_home is None:
         raise SystemExit("Error: set AIDE_HOME or pass --aide-home.")
 
+    # create needed directories
     aide_home = Path(args.aide_home).expanduser().resolve()
     outdir = Path(args.outdir).expanduser() if args.outdir else aide_home / "skim_files"
     outdir.mkdir(parents=True, exist_ok=True)
@@ -169,6 +170,13 @@ def main() -> None:
     input_file = Path(args.input_file).expanduser().resolve()
     datadir = Path(args.datadir).expanduser().resolve()
     datadir.mkdir(parents=True, exist_ok=True)
+
+    skim_clusters_dir = datadir / "skim_clusters"
+    skim_cherenkov_dir = datadir / "skim_cherenkov"
+    
+    skim_clusters_dir.mkdir(parents=True, exist_ok=True)
+    skim_cherenkov_dir.mkdir(parents=True, exist_ok=True)
+
 
     commands_file = Path(args.commands_file).expanduser() if args.commands_file else outdir / "skim_topology_commands.slurm"
     if not commands_file.is_absolute():
@@ -220,7 +228,7 @@ def main() -> None:
                         commands=commands,
                         outdir=outdir,
                         aide_home_for_job=aide_home_for_job,
-                        datadir=datadir,
+                        datadir=skim_cherenkov_dir,
                         input_file=input_file,
                         run_string=args.run_string,
                         json_name=json_name,
@@ -256,7 +264,7 @@ def main() -> None:
                 commands=commands,
                 outdir=outdir,
                 aide_home_for_job=aide_home_for_job,
-                datadir=datadir,
+                datadir=skim_cherenkov_dir,
                 input_file=input_file,
                 run_string=args.run_string,
                 json_name=json_name,
@@ -296,7 +304,7 @@ def main() -> None:
                     commands=commands,
                     outdir=outdir,
                     aide_home_for_job=aide_home_for_job,
-                    datadir=datadir,
+                    datadir=skim_cherenkov_dir,
                     input_file=input_file,
                     run_string=args.run_string,
                     json_name=json_name,
@@ -333,7 +341,7 @@ def main() -> None:
                 commands=commands,
                 outdir=outdir,
                 aide_home_for_job=aide_home_for_job,
-                datadir=datadir,
+                datadir=skim_clusters_dir,
                 input_file=input_file,
                 run_string=args.run_string,
                 json_name=json_name,

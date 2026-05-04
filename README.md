@@ -50,8 +50,11 @@ which will then save the skim json files in the directory ```$AIDE_HOME/skim_fil
 cmd=$(sed -n "${SLURM_ARRAY_TASK_ID}p" skim_files/skim_topology_commands.slurm)
 srun bash -lc "$cmd"
 ```
-TODO: add some automatic merger script here...
 
+Once all skimming jobs are complete, the resulting files can be merged into individual hipo files used for each alignmnet step using
+```
+./merge_datasets.sh [directory to store resulting hipo files]
+```
 ### 2. Edit configuration file
 The following are descriptions of fields to edit for your own slurm and alignment configuration.
 

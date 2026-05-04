@@ -88,7 +88,7 @@ The following are descriptions of fields to edit for your own slurm and alignmen
 * ```"n_batch_sobol"```: batch size for initial Sobol trials (evaluated in parallel)
 * ```"n_batch_mobo"```: batch size for TuRBO trials (evaluated in parallel)
 
-#### Jobs (information for slurm jobs)
+#### Jobs (information for per-trial slurm jobs)
 * ```"ACCOUNT"```: slurm account,
 * ```"PARTITION"```: slurm partition,
 * ```"TIME_LIMIT"```: job time limit (on DCC, recommended "04:00:00" for optical component alignment, "00:30:00" for global alignment), 
@@ -101,5 +101,7 @@ Once configured, run optimization in a long-running slurm job via:
 
 ```python turbo_slurm_ax_1.0.py -c optimization.config -d parameters.config```.
 
-The CSV file containing information on each trial will then be stored at "CSV_DIR". TODO: Automatically identify the best trial and store it somewhere, and produce 1-2 validation plots. 
+Each trial will be submitted as another individual slurm job where the full reconstruction and objective calculation is carried out for a unique set of alignment parameters. The script will end when the total number of trials ```n_sobol + n_mobo``` is reached, or the trust region converges to below the set minimum.
+
+Upon completion, "CSV_DIR" will contain A CSV file containing information on each trial, as well as the best set of alignment parameters identified (trial with the smallest objective value), and the TuRBO state upon exiting the script. 
 

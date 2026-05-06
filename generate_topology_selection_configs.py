@@ -77,6 +77,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Name or path of commands file. Default: <outdir>/skim_topology_commands.slurm.",
     )
+    parser.add_argument(
+        "--in-container",
+        action="store_true",
+        help="Flag for running hipo skim within container"
+    )
     parser.add_argument("--maxev", type=int, default=20000)
     parser.add_argument("--max-pref", type=int, default=20)
     parser.add_argument("--max-per-tile", type=int, default=1000)
@@ -140,6 +145,7 @@ def add_job(
     run_string: str,
     json_name: str,
     output_name: str,
+    in_container: bool
 ) -> None:
     """Append one skim command to the command list.
 
@@ -148,11 +154,17 @@ def add_job(
     """
     config_path = outdir / json_name
     output_path = datadir / output_name
-    command = (
-        f"{aide_home_for_job}/Clas12RichUtils/runSkimCommand.sh "
-        f"{aide_home_for_job}/Clas12RichUtils/RICH-skim-onetop "
-        f"{output_path} @{input_file} --config {config_path}"
-    )
+    if in_container:
+        command = (
+            f"{aide_home_for_job}/Clas12RichUtils/runSkimCommand.sh "
+            f"{aide_home_for_job}/Clas12RichUtils/RICH-skim-onetop "
+            f"{output_path} @{input_file} --config {config_path}"
+        )
+    else:
+        command = (
+            f"{aide_home_for_job}/Clas12RichUtils/RICH-skim-onetop "
+            f"{output_path} @{input_file} --config {config_path}"
+        )
     commands.append(command)
 
 
@@ -233,6 +245,7 @@ def main() -> None:
                         run_string=args.run_string,
                         json_name=json_name,
                         output_name=output_name,
+                        in_container=args.in_container
                     )
 
         # Direct photons.
@@ -269,6 +282,7 @@ def main() -> None:
                 run_string=args.run_string,
                 json_name=json_name,
                 output_name=output_name,
+                in_container=args.in_container
             )
 
         # Planar reflected topologies only.
@@ -309,6 +323,7 @@ def main() -> None:
                     run_string=args.run_string,
                     json_name=json_name,
                     output_name=output_name,
+                    in_container=args.in_container
                 )
         # events with PMT clusters for global alignment
         for layer in [201, 202]:            
@@ -346,8 +361,9 @@ def main() -> None:
                 run_string=args.run_string,
                 json_name=json_name,
                 output_name=output_name,
+                in_container=args.in_container
             )
-        
+            
     with commands_file.open("w") as f:
         f.write("\n".join(commands))
         f.write("\n")

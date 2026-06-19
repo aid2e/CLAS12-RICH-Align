@@ -18,7 +18,6 @@ void fillTree(const char* file, RICHOutput& outobj){
   
   hipo::bank particles(factory.getSchema("REC::Particle"));
   hipo::bank RICHring(factory.getSchema("RICH::Ring"));
-  hipo::bank RICHhadron(factory.getSchema("RICH::Hadron"));
   hipo::bank RICHpart(factory.getSchema("RICH::Particle")); 
   hipo::bank traj(factory.getSchema("REC::Traj"));
  
@@ -33,7 +32,6 @@ void fillTree(const char* file, RICHOutput& outobj){
     if(nev%100000 == 0) {cout << "on event " << nev << endl;}
     event.getStructure(particles);
     event.getStructure(RICHring);    
-    event.getStructure(RICHhadron);    
     event.getStructure(RICHpart);
     event.getStructure(traj);
     
@@ -69,7 +67,8 @@ void fillTree(const char* file, RICHOutput& outobj){
       // loop over photons
       for(int ip = 0; ip < RICHring.getRows(); ip++){
 	// if photon from same track as current RICHpart
-	if( RICHring.getInt("pindex",ip) == pindex){
+	int hypo = RICHring.getInt("hypo",ip);
+	if( (RICHring.getInt("pindex",ip) == pindex) && (hypo == ebpid) ){
 	  if(sector == -1) sector = RICHring.getByte("sector",ip);
 	  
 	  double chRec = RICHring.getFloat("etaC",ip);
@@ -103,14 +102,6 @@ void fillTree(const char* file, RICHOutput& outobj){
       double emix = 0;
       double emiy = 0;
       double emiz = 0;
-      for(int ih = 0; ih < RICHhadron.getRows(); ih++){
-	int hpindex = RICHhadron.getInt("pindex",ih);
-	if(hpindex == pindex){
-	  emix = RICHhadron.getFloat("traced_emix",ih);
-	  emiy = RICHhadron.getFloat("traced_emiy",ih);
-	  emiz = RICHhadron.getFloat("traced_emiz",ih);
-	}
-      }
       double trackx, tracky, trackz; // unit vector of track projection at RICH 
       for(int ij = 0; ij < traj.getRows(); ij++){
 	if(traj.getShort("pindex",ij)==pindex){
